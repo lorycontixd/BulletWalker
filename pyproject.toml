@@ -1,0 +1,33 @@
+[project]
+name = "bulletwalker"
+dynamic = ["version"]
+requires-python = ">=3.10"
+description = "A robot simulator using the PyBullet physics engine"
+authors = [
+    {name = "Lorenzo Conti", email = "lorenzo.conti@iit.it"}
+]
+maintainers = [
+    {name = "Lorenzo Conti", email = "lorenzo.conti@iit.it"}
+]
+license.file = "LICENSE"
+dependencies = [
+    "pybullet",
+    "coloredlogs"
+]
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[build-system]
+requires = [
+    "setuptools >= 64.0",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.dynamic]
+version = {file="src/bulletwalker/VERSION"}
