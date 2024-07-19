@@ -60,15 +60,7 @@ class Simulator:
             log.warning(
                 f"Model {model.name} already exists in the simulator. Overwriting the current model."
             )
-        model.load(pybullet.loadURDF(model.urdf_path))
-        model.reset_position(model.position)
-        model.reset_orientation(model.orientation)
-        # model.reset_velocity(model.velocity)
         self.models.append(model)
-
-        pybullet.resetBasePositionAndOrientation(
-            model.id, model.position, model.orientation
-        )
 
     def add_terrain(self, terrain: Terrain = None) -> None:
         # Pass either a built terrain, a resource or a path to a terrain file
@@ -91,14 +83,26 @@ class Simulator:
                 "Terrain already exists in the simulator. Overwriting the current terrain."
             )
 
-        terrain.load(pybullet.loadURDF(terrain.urdf_path))
-        terrain.reset_position(terrain.position)
-        terrain.reset_orientation(terrain.orientation)
         self.terrain = terrain
 
-        pybullet.resetBasePositionAndOrientation(
-            terrain.id, terrain.position, terrain.orientation
-        )
+    def load_models(self):
+        if self.terrain is not None:
+            self.terrain.load(pybullet.loadURDF(self.terrain.urdf_path))
+            self.terrain.reset_position(self.terrain.position)
+            self.terrain.reset_orientation(self.terrain.orientation)
+
+            pybullet.resetBasePositionAndOrientation(
+                self.terrain.id, self.terrain.position, self.terrain.orientation
+            )
+
+        for model in self.models:
+            model.load(pybullet.loadURDF(model.urdf_path))
+            model.reset_position(model.position)
+            model.reset_orientation(model.orientation)
+
+            pybullet.resetBasePositionAndOrientation(
+                model.id, model.position, model.orientation
+            )
 
     def control_models(self) -> None:
         pass
