@@ -11,6 +11,8 @@ class Quaternion:
 
     """
 
+    Identity: "Quaternion" = np.array([0, 0, 0, 1])
+
     def __init__(self, *args, **kwargs) -> None:
         if len(args) == 1:
             self._from_array(args[0])
