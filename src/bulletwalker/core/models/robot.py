@@ -3,6 +3,7 @@ import pybullet
 import numpy as np
 from typing import List
 from .model import Model
+from bulletwalker.core.math.quaternion import Quaternion
 
 
 class Robot(Model):
@@ -12,8 +13,7 @@ class Robot(Model):
         name: str = "Robot Model",
         **kwargs,
     ) -> None:
-        self.init(urdf_path, name, **kwargs)
-        self.reset_joints(kwargs.get("initial_joints"))
+        super().__init__(name, urdf_path, **kwargs)
 
     def reset_joints(self, poses: np.ndarray | List[float] = None) -> None:
         if poses is None:

@@ -1,54 +1,85 @@
 import numpy as np
 import pybullet
-import pathlib
+from bulletwalker import logging as log
+from bulletwalker.core.math.quaternion import Quaternion
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Sequence
 
 
 class Model(ABC):
     @abstractmethod
-    def __init__(self, urdf_path: str | pathlib.Path, name: str, **kwargs):
-        raise ValueError("Abstract class Model cannot be instantiated")
-
-    def init(self, urdf_path: str | pathlib.Path, name: str, **kwargs) -> None:
-        self.name = name if name else "Model"
+    def __init__(self, name: str, urdf_path: str, **kwargs):
+        self.name = name
+        self.id = -1
+        self.dofs = -1
         self.urdf_path = urdf_path if isinstance(urdf_path, str) else str(urdf_path)
-        self.id = pybullet.loadURDF(urdf_path)
-        self.dof = pybullet.getNumJoints(self.id)
+        self.position = kwargs.get("position", np.zeros(3))
+        self.orientation = kwargs.get("orientation", Quaternion.Identity())
+        self.velocity = kwargs.get("velocity", np.zeros(3))
 
-        valid_kwargs = (
-            "initial_position",
-            "initial_rotation",
-            "initial_velocity",
-        )
-        for key in kwargs:
-            if key not in valid_kwargs:
-                raise ValueError(f"Invalid keyword argument: {key}")
-        self.reset_position(kwargs.get("initial_position"))
-        self.reset_orientation(kwargs.get("initial_rotation"))
+    def load(self, model_id: int) -> None:
+        if model_id < 0:
+            raise ValueError("Invalid ID for model")
+        self.id = model_id
+        self.dofs = pybullet.getNumJoints(self.id)
+        log.info(f"Loaded model {self.name} with ID {self.id} and {self.dofs} DOFs")
 
-    def reset_position(self, position: np.ndarray | List[float] = None) -> None:
+    def reset_position(
+        self, position: Sequence = None, call_pybullet: bool = False
+    ) -> None:
         if position is None:
+            log.warning("No initial position provided. Setting position to [0, 0, 0]")
             position = np.zeros(3)
+        else:
+            try:
+                position = np.array(position, dtype=float)
+            except ValueError:
+                raise ValueError(
+                    "Invalid type for position. Expecting sequence of floats (3)"
+                )
         if not position.shape == (3,):
             raise ValueError(
                 f"Invalid shape of initial position: {position.shape}. Expecting shape (3,)"
             )
-        pybullet.resetBasePositionAndOrientation(self.id, position, [0, 0, 0, 1])
 
-    def reset_orientation(self, orientation: np.ndarray | List[float] = None) -> None:
-        if orientation is None:
-            orientation = np.array([0, 0, 0, 1])
-        if not orientation.shape == (4,):
-            raise ValueError(
-                f"Invalid shape of initial orientation: {orientation.shape}. Expecting shape (4,)"
+        print(f"Setting robot {self.name} ({self.id}) to position {position}")
+        self.position = position
+
+        if call_pybullet and self.id >= 0:
+            pybullet.resetBasePositionAndOrientation(
+                self.id, self.position, self.orientation.elements
             )
-        pybullet.resetBasePositionAndOrientation(self.id, [0, 0, 0], orientation)
+
+    def reset_orientation(
+        self, orientation: Sequence | Quaternion = None, call_pybullet: bool = False
+    ) -> None:
+        if orientation is None:
+            orientation = Quaternion.Identity().elements
+        else:
+            if isinstance(orientation, Quaternion):
+                orientation = orientation.elements
+            else:
+                try:
+                    orientation = np.array(orientation, dtype=float)
+                    if not orientation.shape == (4,):
+                        raise ValueError(
+                            f"Invalid shape of orientation: {orientation.shape}. Expecting shape (4,)"
+                        )
+                except ValueError:
+                    raise ValueError(
+                        "Invalid type for orientation. Expecting sequence of floats (4)"
+                    )
+        self.orientation = orientation
+
+        if call_pybullet and self.id >= 0:
+            pybullet.resetBasePositionAndOrientation(
+                self.id, self.position, self.orientation.elements
+            )
 
     def reset_pose(
         self,
-        position: np.ndarray | List[float] = None,
-        orientation: np.ndarray | List[float] = None,
+        position: Sequence[float] = None,
+        orientation: Sequence[float] | Quaternion = None,
     ) -> None:
         self.reset_position(position)
         self.reset_orientation(orientation)
