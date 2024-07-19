@@ -3,7 +3,7 @@ from typing import Sequence, Any, Tuple
 
 
 class Quaternion:
-    """A class representing a quaternion (w, x, y, z)"""
+    """A class representing a quaternion (x, y, z, w)"""
 
     def __init__(self, *args, **kwargs) -> None:
         if len(args) == 1:
@@ -11,7 +11,7 @@ class Quaternion:
         elif len(args) == 4:
             self._from_components(*args)
         elif len(args) == 0:
-            self._from_components(1, 0, 0, 0)
+            self._from_components(0, 0, 0, 1)
 
     def _from_array(self, array: np.ndarray) -> None:
         try:
@@ -26,8 +26,11 @@ class Quaternion:
             )
         self._q = array
 
-    def _from_components(self, w: float, x: float, y: float, z: float) -> None:
-        self._q = np.array([w, x, y, z])
+    def _from_components(self, x: float, y: float, z: float, w: float) -> None:
+        self._q = np.array([x, y, z, w])
+
+    def to_array(self) -> np.ndarray:
+        return self._q
 
     def norm(self) -> float:
         return float(np.linalg.norm(self._q))
@@ -36,7 +39,7 @@ class Quaternion:
         return Quaternion(self._q / self.norm())
 
     def conjugate(self) -> "Quaternion":
-        return Quaternion(self._q * np.array([1, -1, -1, -1]))
+        return Quaternion(self._q * np.array([-1, -1, -1, 1]))
 
     def inverse(self) -> "Quaternion":
         return self.conjugate() / self.norm()
@@ -52,7 +55,7 @@ class Quaternion:
             raise ValueError(
                 f"Invalid shape of vector: {len(vector)}. Expecting shape (3,)"
             )
-        return self * Quaternion(0, *vector) * self.inverse()
+        return self * Quaternion(*vector, 0) * self.inverse()
 
     def to_angle_axis(self) -> Tuple[float, np.ndarray]:
         angle = 2 * np.arccos(self.w)
@@ -60,7 +63,7 @@ class Quaternion:
         return angle, axis
 
     def to_euler(self) -> np.ndarray:
-        w, x, y, z = self._q
+        x, y, z, w = self._q
         t0 = 2 * (w * x + y * z)
         t1 = 1 - 2 * (x * x + y * y)
         roll = np.arctan2(t0, t1)
@@ -74,7 +77,7 @@ class Quaternion:
         return np.array([roll, pitch, yaw])
 
     def to_matrix(self) -> np.ndarray:
-        w, x, y, z = self._q
+        x, y, z, w = self._q
         return np.array(
             [
                 [
@@ -97,23 +100,27 @@ class Quaternion:
 
     @property
     def x(self) -> float:
-        return self._q[1]
+        return self._q[0]
 
     @property
     def y(self) -> float:
-        return self._q[2]
+        return self._q[1]
 
     @property
     def z(self) -> float:
-        return self._q[3]
+        return self._q[2]
 
     @property
     def w(self) -> float:
-        return self._q[0]
+        return self._q[3]
+
+    @property
+    def elements(self) -> np.ndarray:
+        return self._q
 
     @staticmethod
     def Identity() -> "Quaternion":
-        return Quaternion(1, 0, 0, 0)
+        return Quaternion(0, 0, 0, 1)
 
     # Operator overloading
 
@@ -159,10 +166,10 @@ class Quaternion:
             raise ValueError(
                 f"Invalid shape of vector: {len(vector)}. Expecting shape (3,)"
             )
-        w, x, y, z = self._q
-        vq = Quaternion(0, *vector)
+        x, y, z, w = self._q
+        vq = Quaternion(*vector, 0)
         result = self * vq * self.inverse()
-        return result._q[1:]
+        return result._q[:3]
 
     def __iter__(self):
         return iter(self._q)
@@ -210,7 +217,7 @@ class Quaternion:
         axis = axis / np.linalg.norm(axis)
         w = np.cos(angle / 2)
         xyz = np.sin(angle / 2) * axis
-        return Quaternion(w, *xyz)
+        return Quaternion(*xyz, w)
 
     @staticmethod
     def from_euler(roll: float, pitch: float, yaw: float) -> "Quaternion":
@@ -224,7 +231,15 @@ class Quaternion:
         x = sr * cp * cy - cr * sp * sy
         y = cr * sp * cy + sr * cp * sy
         z = cr * cp * sy - sr * sp * cy
-        return Quaternion(w, x, y, z)
+        return Quaternion(x, y, z, w)
+
+    @staticmethod
+    def from_euler_seq(euler: Sequence) -> "Quaternion":
+        if not len(euler) == 3:
+            raise ValueError(
+                f"Invalid shape of euler angles: {len(euler)}. Expecting shape (3,)"
+            )
+        return Quaternion.from_euler(*euler)
 
     @staticmethod
     def from_matrix(matrix: np.ndarray) -> "Quaternion":
@@ -260,12 +275,12 @@ class Quaternion:
             x = (m02 + m20) / S
             y = (m12 + m21) / S
             z = 0.25 * S
-        return Quaternion(w, x, y, z)
+        return Quaternion(x, y, z, w)
 
     @staticmethod
     def quaternion_multiplication(q1, q2: "Quaternion") -> "Quaternion":
-        w = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z
-        x = q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y
-        y = q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x
-        z = q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w
-        return Quaternion(w, x, y, z)
+        x = q1.x * q2.w + q1.y * q2.z - q1.z * q2.y + q1.w * q2.x
+        y = -q1.x * q2.z + q1.y * q2.w + q1.z * q2.x + q1.w * q2.y
+        z = q1.x * q2.y - q1.y * q2.x + q1.z * q2.w + q1.w * q2.z
+        w = -q1.x * q2.x - q1.y * q2.y - q1.z * q2.z + q1.w * q2.w
+        return Quaternion(x, y, z, w)
