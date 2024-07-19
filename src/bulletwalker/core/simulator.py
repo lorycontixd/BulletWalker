@@ -4,6 +4,7 @@ import numpy as np
 import time
 from bulletwalker import logging as log
 from bulletwalker.core.models.model import Model
+from bulletwalker.core.models.robot import Robot
 from bulletwalker.core.models.terrain import Terrain, PlaneTerrain
 from bulletwalker.core.callbacks import Callback
 from typing import Union, Tuple, List
@@ -55,7 +56,19 @@ class Simulator:
     def add_model(self, model: Model) -> None:
         if not isinstance(model, Model):
             raise TypeError("Model must be an instance of the Model class")
+        if not model.id == -1:
+            log.warning(
+                f"Model {model.name} already exists in the simulator. Overwriting the current model."
+            )
+        model.load(pybullet.loadURDF(model.urdf_path))
+        model.reset_position(model.position)
+        model.reset_orientation(model.orientation)
+        # model.reset_velocity(model.velocity)
         self.models.append(model)
+
+        pybullet.resetBasePositionAndOrientation(
+            model.id, model.position, model.orientation
+        )
 
     def add_terrain(self, terrain: Terrain = None) -> None:
         # Pass either a built terrain, a resource or a path to a terrain file
@@ -69,11 +82,26 @@ class Simulator:
                 / "plane_terrain.urdf"
             )
             terrain = PlaneTerrain(path, rotation=np.array([0, 0, 0, 1]))
+        else:
+            if not isinstance(terrain, Terrain):
+                raise TypeError("Terrain must be an instance of the Terrain class")
+
         if self.terrain is not None:
             log.warning(
                 "Terrain already exists in the simulator. Overwriting the current terrain."
             )
+
+        terrain.load(pybullet.loadURDF(terrain.urdf_path))
+        terrain.reset_position(terrain.position)
+        terrain.reset_orientation(terrain.orientation)
         self.terrain = terrain
+
+        pybullet.resetBasePositionAndOrientation(
+            terrain.id, terrain.position, terrain.orientation
+        )
+
+    def control_models(self) -> None:
+        pass
 
     def step(self):
         pybullet.stepSimulation(physicsClientId=self.client)
@@ -83,8 +111,15 @@ class Simulator:
         self.t: float = 0.0
 
     def run(
-        self, dt: float = 0.001, tf: float = 2.0, callbacks: List[Callback] = []
+        self,
+        initial_delay: float = 1.0,
+        dt: float = 0.001,
+        tf: float = 2.0,
+        callbacks: List[Callback] = [],
     ) -> None:
+        if initial_delay > 0:
+            log.debug(f"Starting simulation in {initial_delay} seconds")
+            time.sleep(initial_delay)
         self.reset()
         start = time.time()
         self.running = True
