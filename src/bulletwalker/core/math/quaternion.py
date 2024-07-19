@@ -1,9 +1,15 @@
 import numpy as np
+from . import utils
 from typing import Sequence, Any, Tuple
 
 
 class Quaternion:
-    """A class representing a quaternion (x, y, z, w)"""
+    """A class representing a quaternion (x, y, z, w)
+
+    Args:
+        *args: Either a sequence of 4 floats representing the quaternion array or 4 floats representing the quaternion components
+
+    """
 
     def __init__(self, *args, **kwargs) -> None:
         if len(args) == 1:
@@ -11,7 +17,30 @@ class Quaternion:
         elif len(args) == 4:
             self._from_components(*args)
         elif len(args) == 0:
-            self._from_components(0, 0, 0, 1)
+            if len(kwargs) == 0:
+                self._from_components(0, 0, 0, 1)
+            else:
+                vec = kwargs.get("vector", None)
+                if vec is not None:
+                    self._from_vector(vec)
+
+        else:
+            raise ValueError(
+                f"Invalid number of arguments: {len(args)}. Expecting 0, 1 or 4 arguments"
+            )
+
+    def _from_vector(self, vector: Sequence) -> None:
+        try:
+            vector = np.array(vector, dtype=float)
+        except ValueError:
+            raise ValueError(
+                "Invalid type for quaternion vector. Expecting sequence of floats (3)"
+            )
+        if not vector.shape == (3,):
+            raise ValueError(
+                f"Invalid shape of quaternion vector: {vector.shape}. Expecting shape (3,)"
+            )
+        self._q = np.array([*vector, 0])
 
     def _from_array(self, array: np.ndarray) -> None:
         try:
@@ -190,6 +219,9 @@ class Quaternion:
     def __str__(self) -> str:
         return f"Quaternion({self._q})"
 
+    def __repr__(self) -> str:
+        return f"Quaternion({self._q})"
+
     @staticmethod
     def rotation(vector_a: Sequence, vector_b: Sequence) -> "Quaternion":
         try:
@@ -221,12 +253,30 @@ class Quaternion:
 
     @staticmethod
     def from_euler(roll: float, pitch: float, yaw: float) -> "Quaternion":
-        cy = np.cos(yaw * 0.5)
-        sy = np.sin(yaw * 0.5)
-        cp = np.cos(pitch * 0.5)
-        sp = np.sin(pitch * 0.5)
+        """Construct a quaternion from euler angles (roll, pitch, yaw).
+        Roll = x-axis rotation
+        Pitch = y-axis rotation
+        Yaw = z-axis rotation
+
+        Args:
+            roll (float): Roll angle in degrees
+            pitch (float): Pitch angle in degrees
+            yaw (float): Yaw angle in degrees
+
+        Returns:
+            Quaternion: The quaternion representing the euler angles
+        """
+        roll = utils.deg_to_rad(roll)
+        pitch = utils.deg_to_rad(pitch)
+        yaw = utils.deg_to_rad(yaw)
+
         cr = np.cos(roll * 0.5)
         sr = np.sin(roll * 0.5)
+        cp = np.cos(pitch * 0.5)
+        sp = np.sin(pitch * 0.5)
+        cy = np.cos(yaw * 0.5)
+        sy = np.sin(yaw * 0.5)
+
         w = cr * cp * cy + sr * sp * sy
         x = sr * cp * cy - cr * sp * sy
         y = cr * sp * cy + sr * cp * sy
