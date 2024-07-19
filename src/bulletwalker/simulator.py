@@ -125,6 +125,7 @@ class Simulator:
         self,
         dt: float = 1.0 / 240,
         tf: float = 2.0,
+        frozen_run: bool = False,
         callbacks: List[Callback] = [],
     ) -> None:
         if dt <= 0:
@@ -145,6 +146,11 @@ class Simulator:
         log.info(f"Starting simulation {self.name}")
         for callback in callbacks:
             callback.on_simulation_start(self)
+
+        if frozen_run:
+            while True:
+                pass
+
         while self.running:
             if self.should_stop:
                 self.running = False

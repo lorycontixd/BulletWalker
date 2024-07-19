@@ -1,20 +1,66 @@
 import numpy as np
 import trimesh
 import os
+import pathlib
+import pybullet
+from dataclasses import dataclass
 from bulletwalker.core.models.model import Model
 from bulletwalker.core.math.quaternion import Quaternion
+from bulletwalker.data.dynamics_info import DynamicsInfo
 from abc import ABC, abstractmethod
+
+
+@dataclass
+class TerrainDynamicParameters:
+    lateral_friction: float = 1.0
+    spinning_friction: float = 1.0
+    restitution: float = 0.0
+    linear_damping: float = 0.04
+    angular_damping: float = 0.04
+
+    def __post_init__(self):
+        self.lateral_friction = max(0.0, self.lateral_friction)
+        self.spinning_friction = max(0.0, self.spinning_friction)
+        self.restitution = max(0.0, self.restitution)
+        self.linear_damping = max(0.0, self.linear_damping)
+        self.angular_damping = max(0.0, self.angular_damping)
 
 
 class Terrain(Model, ABC):
     @abstractmethod
-    def __init__(self, name, terrain_urdf: str, **kwargs):
-        super().__init__(name, terrain_urdf, **kwargs)
+    def __init__(
+        self,
+        terrain_urdf: str,
+        dynamic_parameters: TerrainDynamicParameters,
+        **kwargs,
+    ):
+        super().__init__(self.__class__.__name__, terrain_urdf, **kwargs)
         self.velocity = np.zeros(3)
+        self.dynamic_parameters = dynamic_parameters
+
+    def load(self, index: int):
+        super().load(index)
+        self._set_dynamics()
+
+    def _set_dynamics(self):
+        pybullet.changeDynamics(
+            self.id,
+            -1,
+            lateralFriction=self.dynamic_parameters.lateral_friction,
+            spinningFriction=self.dynamic_parameters.spinning_friction,
+            restitution=self.dynamic_parameters.restitution,
+            linearDamping=self.dynamic_parameters.linear_damping,
+            angularDamping=self.dynamic_parameters.angular_damping,
+        )
 
 
 class PlaneTerrain(Terrain):
-    def __init__(self, path: str, **kwargs):
+    def __init__(
+        self,
+        path: str,
+        dynamic_parameters: TerrainDynamicParameters = TerrainDynamicParameters(),
+        **kwargs,
+    ):
         """Initialize a PlaneTerrain object
 
         Args:
@@ -29,17 +75,16 @@ class PlaneTerrain(Terrain):
         """
         # Use built-in resource later on
 
-        super().__init__(self.__class__.__name__, path, **kwargs)
+        super().__init__(path, dynamic_parameters, **kwargs)
 
 
 class HeightmapTerrain(Terrain):
-    pass
+    def __init__(self) -> None:
+        pass
 
 
 class RandomTerrain(Terrain):
-    def __init__(
-        self, size: np.ndarray, seed: int = 0, disturbance: float = 1.0, **kwargs
-    ):
+    def __init__(self):
         """Initialize a RandomTerrain object
 
         Args:
