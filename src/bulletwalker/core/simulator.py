@@ -13,6 +13,11 @@ from dataclasses import dataclass
 
 
 @dataclass
+class PhysicsEngineParameters:
+    timestep: float = 1.0 / 240
+
+
+@dataclass
 class SimulationStep:
     index: int
     time: float
@@ -104,11 +109,13 @@ class Simulator:
                 model.id, model.position, model.orientation
             )
 
-    def control_models(self) -> None:
-        pass
-
     def step(self):
+        for model in self.models:
+            model.step()
         pybullet.stepSimulation(physicsClientId=self.client)
+
+        # for model in self.models:
+        #    model.post_step()
 
     def reset(self) -> None:
         self.should_stop = False
@@ -116,14 +123,22 @@ class Simulator:
 
     def run(
         self,
-        initial_delay: float = 1.0,
-        dt: float = 0.001,
+        dt: float = 1.0 / 240,
         tf: float = 2.0,
         callbacks: List[Callback] = [],
     ) -> None:
-        if initial_delay > 0:
-            log.debug(f"Starting simulation in {initial_delay} seconds")
-            time.sleep(initial_delay)
+        if dt <= 0:
+            raise ValueError("Time step must be greater than zero.")
+        if dt > 0.1:
+            log.warning(
+                "Time step is greater than 0.1 seconds. Simulations may produce unrealistic results."
+            )
+        elif dt < 1e-4:
+            log.warning(
+                "Time step is smaller than 1e-4 seconds. Simulations may be slow or may diverge."
+            )
+        pybullet.setTimeStep(dt, physicsClientId=self.client)
+
         self.reset()
         start = time.time()
         self.running = True

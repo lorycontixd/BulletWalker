@@ -11,18 +11,17 @@ class Model(ABC):
     def __init__(self, name: str, urdf_path: str, **kwargs):
         self.name = name
         self.id = -1
-        self.dofs = -1
         self.urdf_path = urdf_path if isinstance(urdf_path, str) else str(urdf_path)
         self.position = kwargs.get("position", np.zeros(3))
         self.orientation = kwargs.get("orientation", Quaternion.Identity())
         self.velocity = kwargs.get("velocity", np.zeros(3))
 
+    @abstractmethod
     def load(self, model_id: int) -> None:
         if model_id < 0:
             raise ValueError("Invalid ID for model")
         self.id = model_id
-        self.dofs = pybullet.getNumJoints(self.id)
-        log.info(f"Loaded model {self.name} with ID {self.id} and {self.dofs} DOFs")
+        log.info(f"Loaded model {self.name} with ID {self.id}")
 
     def reset_position(
         self, position: Sequence = None, call_pybullet: bool = False
