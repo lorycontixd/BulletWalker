@@ -83,3 +83,29 @@ class EarlyStoppingCallback(Callback):
 
     def _is_improvement(self, monitor_value, reference_value) -> bool:
         return self.monitor_operation(monitor_value - self.min_delta, reference_value)
+
+
+class PrinterCallback(Callback):
+    """Callback to print wanted variables when included in the simulator.
+
+    Args:
+        Callback ([type]): [description]
+
+    """
+
+    def __init__(self, simulator, variables):
+        super().__init__(simulator)
+        self.variables = variables
+
+    def on_simulation_start(self):
+        print("Simulation started")
+
+    def on_simulation_step(self, simulation_step):
+        for var in self.variables:
+            try:
+                print(f"{var}: {getattr(simulation_step, var)}")
+            except AttributeError:
+                print(f"Variable {var} not found in simulation step")
+
+    def on_simulation_end(self):
+        print("Simulation ended")

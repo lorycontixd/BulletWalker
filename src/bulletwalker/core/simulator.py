@@ -25,15 +25,18 @@ class Simulator:
     def __init__(
         self,
         name: str = "Simulator",
+        gravity: Tuple[float, float, float] = (0, 0, -9.81),
         use_gui: bool = False,
         real_time: bool = False,
-        gravity: Tuple[float, float, float] = (0, 0, -9.81),
+        use_gl2: bool = False,
         models: List[Model] = [],
     ) -> None:
         self.name = name if name else "Simulator"
         self.gravity = np.array(gravity)
         if use_gui:
-            self.client: int = pybullet.connect(pybullet.GUI)
+            self.client: int = pybullet.connect(
+                pybullet.GUI, options="--opengl2" if use_gl2 else ""
+            )
         else:
             self.client: int = pybullet.connect(pybullet.DIRECT)
 
@@ -43,6 +46,7 @@ class Simulator:
             self.gravity[2],
             physicsClientId=self.client,
         )
+        self.real_time: bool = real_time
         if real_time:
             pybullet.setRealTimeSimulation(1, physicsClientId=self.client)
 
@@ -99,12 +103,19 @@ class Simulator:
             model.load(pybullet.loadURDF(model.urdf_path))
             model.reset_position(model.position)
             model.reset_orientation(model.orientation)
+            print(
+                f"Resetting model {model.name} to position {model.position} and orientation {model.orientation}"
+            )
 
             pybullet.resetBasePositionAndOrientation(
                 model.id, model.position, model.orientation
             )
 
+<<<<<<< Updated upstream:src/bulletwalker/core/simulator.py
     def control_models(self) -> None:
+=======
+    def get_model_states(self):
+>>>>>>> Stashed changes:src/bulletwalker/simulator.py
         pass
 
     def step(self):
@@ -121,9 +132,23 @@ class Simulator:
         tf: float = 2.0,
         callbacks: List[Callback] = [],
     ) -> None:
+<<<<<<< Updated upstream:src/bulletwalker/core/simulator.py
         if initial_delay > 0:
             log.debug(f"Starting simulation in {initial_delay} seconds")
             time.sleep(initial_delay)
+=======
+        if dt <= 0:
+            raise ValueError("Time step must be greater than zero.")
+        if dt > 0.1:
+            log.warning(
+                "Time step is greater than 0.1 seconds. Simulations may produce unrealistic results."
+            )
+        elif dt < 1e-4:
+            log.warning(
+                "Time step is smaller than 1e-4 seconds. Simulations may be slow or may diverge."
+            )
+        pybullet.setTimeStep(dt, physicsClientId=self.client)
+>>>>>>> Stashed changes:src/bulletwalker/simulator.py
         self.reset()
         start = time.time()
         self.running = True
@@ -134,9 +159,9 @@ class Simulator:
             if self.should_stop:
                 self.running = False
                 break
-            tik = time.time()
+            # tik = time.time()
             self.step()
-            tok = time.time()
+            # tok = time.time()
             for callback in callbacks:
                 callback.on_simulation_step(
                     self, SimulationStep(index=0, time=self.t, score=0.0, loss=0.0)
