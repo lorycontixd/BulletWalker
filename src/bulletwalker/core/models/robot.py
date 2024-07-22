@@ -1,11 +1,10 @@
 import pathlib
 import pybullet
-import numpy as np
 from typing import List, Dict
 from .model import Model
-from bulletwalker.core.math.quaternion import Quaternion
-from bulletwalker.data.joint_data import JointData, ControlMetric
 from bulletwalker.data.joint_info import JointInfo
+from bulletwalker.data.joint_data import JointData, ControlMetric
+from bulletwalker.data.joint_state import JointState
 from bulletwalker import logging as log
 
 
@@ -17,10 +16,11 @@ class Robot(Model):
         **kwargs,
     ) -> None:
         super().__init__(name, urdf_path, **kwargs)
-        self.dofs = -1
         i_j: List[JointData] = kwargs.get("joints", [])
-        self.joints: Dict[str, JointInfo] = {}
         self.initial_joints: Dict[str, JointData] = {j.name: j for j in i_j}
+        print(f"Initial rot of {self.name}: {self.orientation.elements}")
+
+        self.i = 0
 
     def load(self, model_id: int) -> None:
         super().load(model_id)
@@ -103,9 +103,14 @@ class Robot(Model):
         if self.id < 0:
             raise ValueError("Robot ID is not set. Load model first.")
 
+        if self.i == 0:
+            pybullet.applyExternalForce(
+                self.id, -1, [20, 0, 0], [0, 0, 0], pybullet.WORLD_FRAME
+            )
+
         joint_indices = [j.index for j in self.joints.values()]
-        control_mode = ControlMetric.POSITION
-        control_values = [0.0] * len(joint_indices)
+        control_mode = ControlMetric.VELOCITY
+        control_values = [0.01] * len(joint_indices)
         print(
             f"Setting joints {joint_indices} to {control_values} with control mode {control_mode.name}"
         )
@@ -121,11 +126,10 @@ class Robot(Model):
         ]
         for j in rev_joints:
             j: JointInfo
-            state = pybullet.getJointState(self.id, j.index)
-            print(
-                f"Joint {j.name} state: p={state[0]}, v={state[1]}, rf={state[2]}, mt={state[3]}"
-            )
+            state = JointState(pybullet.getJointState(self.id, j.index))
+            print(f"Joint {j.name} ==> state: {state}")
         print("")
+        self.i += 1
 
     def post_step(self) -> None:
         pass

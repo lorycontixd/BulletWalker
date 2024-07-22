@@ -1,6 +1,8 @@
 import numpy as np
 import pybullet
+from typing import Dict
 from bulletwalker import logging as log
+from bulletwalker.data.joint_info import JointInfo
 from bulletwalker.core.math.quaternion import Quaternion
 from abc import ABC, abstractmethod
 from typing import Sequence
@@ -11,10 +13,22 @@ class Model(ABC):
     def __init__(self, name: str, urdf_path: str, **kwargs):
         self.name = name
         self.id = -1
+        self.dofs = -1  # Remains -1 in non-robot models
         self.urdf_path = urdf_path if isinstance(urdf_path, str) else str(urdf_path)
+        self._validate_kwargs(**kwargs)
         self.position = kwargs.get("position", np.zeros(3))
         self.orientation = kwargs.get("orientation", Quaternion.Identity())
         self.velocity = kwargs.get("velocity", np.zeros(3))
+        self.joints: Dict[str, JointInfo] = {}  # Remains empty in non-robot models
+
+    def _validate_kwargs(self, **kwargs):
+        valid_kwargs = ("position", "orientation", "velocity", "joints")
+        for key in kwargs:
+            print(f"Checking key {key} for model {self.name}")
+            if key not in valid_kwargs:
+                raise ValueError(
+                    f"Invalid keyword argument {key}. Valid arguments: {valid_kwargs}"
+                )
 
     @abstractmethod
     def load(self, model_id: int) -> None:
