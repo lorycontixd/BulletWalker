@@ -1,10 +1,13 @@
 import pathlib
 import pybullet
+import numpy as np
 from typing import List, Dict
 from .model import Model
 from bulletwalker.data.joint_info import JointInfo
 from bulletwalker.data.joint_data import JointData, ControlMetric
 from bulletwalker.data.joint_state import JointState
+from bulletwalker.data.model_state import ModelState
+from bulletwalker.core.math.quaternion import Quaternion
 from bulletwalker import logging as log
 
 
@@ -18,8 +21,6 @@ class Robot(Model):
         super().__init__(name, urdf_path, **kwargs)
         i_j: List[JointData] = kwargs.get("joints", [])
         self.initial_joints: Dict[str, JointData] = {j.name: j for j in i_j}
-        print(f"Initial rot of {self.name}: {self.orientation.elements}")
-
         self.i = 0
 
     def load(self, model_id: int) -> None:
@@ -59,7 +60,6 @@ class Robot(Model):
                     else ControlMetric.POSITION
                 ),
             )
-            print(f"Joint name: {joint_name}, Type: {self.joints[joint_name].type}")
             pybullet.enableJointForceTorqueSensor(self.id, i, enableSensor=True)
             log.debug(f"Setting joint {joint_name} to initial value")
             pybullet.resetJointState(
@@ -111,9 +111,9 @@ class Robot(Model):
         joint_indices = [j.index for j in self.joints.values()]
         control_mode = ControlMetric.VELOCITY
         control_values = [0.01] * len(joint_indices)
-        print(
-            f"Setting joints {joint_indices} to {control_values} with control mode {control_mode.name}"
-        )
+        # print(
+        #     f"Setting joints {joint_indices} to {control_values} with control mode {control_mode.name}"
+        # )
         pybullet.setJointMotorControlArray(
             self.id,
             joint_indices,
@@ -121,14 +121,14 @@ class Robot(Model):
             forces=control_values,
         )
 
-        rev_joints = [
-            j for j in self.joints.values() if j.type == pybullet.JOINT_REVOLUTE
-        ]
-        for j in rev_joints:
-            j: JointInfo
-            state = JointState(pybullet.getJointState(self.id, j.index))
-            print(f"Joint {j.name} ==> state: {state}")
-        print("")
+        # rev_joints = [
+        #     j for j in self.joints.values() if j.type == pybullet.JOINT_REVOLUTE
+        # ]
+        # for j in rev_joints:
+        #     j: JointInfo
+        #     state = JointState(pybullet.getJointState(self.id, j.index))
+        #     print(f"Joint {j.name} ==> state: {state}")
+        # print("")
         self.i += 1
 
     def post_step(self) -> None:
@@ -143,3 +143,21 @@ class Robot(Model):
             joint_mass = pybullet.getDynamicsInfo(self.id, i)[0]
             total_mass += joint_mass
         return total_mass
+
+    def get_model_state(model: Model) -> ModelState:
+        _pos, _or = pybullet.getBasePositionAndOrientation(model.id)
+        velocities = pybullet.getBaseVelocity(model.id)
+        lin_vel = velocities[0]
+        ang_vel = velocities[1]
+        joints = [j for j in model.joints]
+        joint_states = {
+            j: JointState(pybullet.getJointState(model.id, model.joints[j].index))
+            for j in joints
+        }
+        return ModelState(
+            base_position=np.array(_pos),
+            base_orientation=Quaternion(_or),
+            base_linear_velocity=lin_vel,
+            base_angular_velocity=ang_vel,
+            joint_states=joint_states,
+        )

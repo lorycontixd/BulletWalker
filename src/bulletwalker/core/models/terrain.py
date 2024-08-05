@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from bulletwalker.core.models.model import Model
 from bulletwalker.core.math.quaternion import Quaternion
 from bulletwalker.data.dynamics_info import DynamicsInfo
+from bulletwalker.data.model_state import ModelState
+from bulletwalker.data.joint_state import JointState
 from abc import ABC, abstractmethod
 
 
@@ -53,11 +55,18 @@ class Terrain(Model, ABC):
             angularDamping=self.dynamic_parameters.angular_damping,
         )
 
+    def get_model_state(model: Model) -> ModelState:
+        _pos, _or = pybullet.getBasePositionAndOrientation(model.id)
+        return ModelState(
+            base_position=np.array(_pos),
+            base_orientation=Quaternion(_or),
+            joint_states=[],
+        )
+
 
 class PlaneTerrain(Terrain):
     def __init__(
         self,
-        path: str,
         dynamic_parameters: TerrainDynamicParameters = TerrainDynamicParameters(),
         **kwargs,
     ):
@@ -74,7 +83,13 @@ class PlaneTerrain(Terrain):
             The rotation can be passed as a numpy array of shape (3,) representing an euler rotation or as a Quaternion object
         """
         # Use built-in resource later on
-
+        path = str(
+            pathlib.Path(__file__).parents[2]
+            / "assets"
+            / "urdfs"
+            / "terrains"
+            / "plane_terrain.urdf"
+        )
         super().__init__(path, dynamic_parameters, **kwargs)
 
 
