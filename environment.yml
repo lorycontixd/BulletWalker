@@ -52,7 +52,6 @@ dependencies:
   - xorg-xproto=7.0.31=h7f98852_1007
   - xz=5.2.6=h166bdaf_0
   - pip:
-      - bulletwalker==0.0.1
       - mashumaro==3.13.1
       - mpi4py==3.1.6
       - packaging==24.1
