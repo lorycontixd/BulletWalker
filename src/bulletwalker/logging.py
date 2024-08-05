@@ -51,8 +51,7 @@ def _logger() -> logging.Logger:
 def configure(
     level: LoggingLevel = LoggingLevel.WARNING, file_path: str = None
 ) -> None:
-    info("Configuring the 'jaxsim-simulator' logger")
-    print("Configuring the 'jaxsim-simulator' logger")
+    info(f"Configuring the '{LOGGER_NAME}' logger")
 
     # Do not propagate the messages to handlers of parent loggers
     # (preventing duplicate logging)

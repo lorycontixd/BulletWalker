@@ -3,6 +3,7 @@ import pybullet
 from typing import Dict
 from bulletwalker import logging as log
 from bulletwalker.data.joint_info import JointInfo
+from bulletwalker.data.model_state import ModelState
 from bulletwalker.core.math.quaternion import Quaternion
 from abc import ABC, abstractmethod
 from typing import Sequence
@@ -24,7 +25,6 @@ class Model(ABC):
     def _validate_kwargs(self, **kwargs):
         valid_kwargs = ("position", "orientation", "velocity", "joints")
         for key in kwargs:
-            print(f"Checking key {key} for model {self.name}")
             if key not in valid_kwargs:
                 raise ValueError(
                     f"Invalid keyword argument {key}. Valid arguments: {valid_kwargs}"
@@ -54,8 +54,7 @@ class Model(ABC):
             raise ValueError(
                 f"Invalid shape of initial position: {position.shape}. Expecting shape (3,)"
             )
-
-        print(f"Setting robot {self.name} ({self.id}) to position {position}")
+        log.debug(f"Setting position of model {self.name} to {position}")
         self.position = position
 
         if call_pybullet and self.id >= 0:
@@ -96,3 +95,7 @@ class Model(ABC):
     ) -> None:
         self.reset_position(position)
         self.reset_orientation(orientation)
+
+    @abstractmethod
+    def get_model_state(self) -> ModelState:
+        pass

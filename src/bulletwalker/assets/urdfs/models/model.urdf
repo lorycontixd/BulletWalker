@@ -60,19 +60,19 @@
   <link name="left_foot">
     <inertial>
       <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
-      <mass value="0.5"/>
-      <inertia ixx="0.37910792427372064" ixy="2.5547406570745716e-05" ixz="0.0006704452847879228" iyy="0.788029998387879" iyz="-0.021354195549583566" izz="0.4459529083989767"/>
+      <mass value="3.0"/>
+      <inertia ixx="0.01" ixy="2.5547406570745716e-05" ixz="0.0006704452847879228" iyy="0.01" iyz="-0.021354195549583566" izz="0.01"/>
     </inertial>
     <visual name="left_foot_visual">
       <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
       <geometry>
-        <mesh filename="/mnt/c/Users/lconti/Documents/programming/dev/element_lower-leg-morphology-optimization/src/passive_walker/Learner/assets/foot_2.obj" scale="0.3 0.3 0.3"/>
+        <mesh filename="../../meshes/foot_2.obj" scale="0.3 0.3 0.3"/>
       </geometry>
     </visual>
     <collision name="left_foot_collision">
       <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
       <geometry>
-        <mesh filename="/mnt/c/Users/lconti/Documents/programming/dev/element_lower-leg-morphology-optimization/src/passive_walker/Learner/assets/foot_2.obj" scale="0.3 0.3 0.3"/>
+        <mesh filename="../../meshes/foot_2.obj" scale="0.3 0.3 0.3"/>
       </geometry>
     </collision>
   </link>
@@ -85,45 +85,31 @@
     <visual name="right_foot_visual">
       <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
       <geometry>
-        <mesh filename="/mnt/c/Users/lconti/Documents/programming/dev/element_lower-leg-morphology-optimization/src/passive_walker/Learner/assets/foot_2.obj" scale="0.3 0.3 0.3"/>
+        <mesh filename="../../meshes/foot_2.obj" scale="0.3 0.3 0.3"/>
       </geometry>
     </visual>
     <collision name="right_foot_collision">
       <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
       <geometry>
-        <mesh filename="/mnt/c/Users/lconti/Documents/programming/dev/element_lower-leg-morphology-optimization/src/passive_walker/Learner/assets/foot_2.obj" scale="0.3 0.3 0.3"/>
+        <mesh filename="../../meshes/foot_2.obj" scale="0.3 0.3 0.3"/>
       </geometry>
     </collision>
   </link>
-  <link name="left_foot_custom_frame">
-    <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <mass value="0.0"/>
-      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
-    </inertial>
-  </link>
-  <link name="right_foot_custom_frame">
-    <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <mass value="0.0"/>
-      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
-    </inertial>
-  </link>
   <joint name="left_hip" type="revolute">
-    <origin xyz="0.0 -0.4 0.0" rpy="0.0 0.0 0.0"/>
+    <origin xyz="0.0 -0.47 0.0" rpy="0.0 0.0 0.0"/>
     <parent link="root"/>
     <child link="left_leg"/>
     <axis xyz="0.0 1.0 0.0"/>
-    <dynamics damping="0.0" friction="0.0"/>
+    <dynamics damping="0.0" friction="0.0001"/>
     <limit effort="3.4028235e+38" velocity="3.4028235e+38" lower="-0.1096622711232151" upper="0.1096622711232151"/>
   </joint>
   <joint name="right_hip" type="revolute">
-    <origin xyz="0.0 0.4 0.0" rpy="0.0 0.0 0.0"/>
+    <origin xyz="0.0 0.47 0.0" rpy="0.0 0.0 0.0"/>
     <parent link="root"/>
     <child link="right_leg"/>
     <axis xyz="0.0 1.0 0.0"/>
-    <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="3.4028235e+38" velocity="3.4028235e+38" lower="-0.5235987755982988" upper="0.5235987755982988"/>
+    <dynamics damping="2.0" friction="0.0001"/>
+    <limit effort="1e+9" velocity="1e+9" lower="-0.5235987755982988" upper="0.5235987755982988"/>
   </joint>
   <joint name="left_ankle" type="fixed">
     <origin xyz="0.0 -0.2 -1.5" rpy="1.5707963267948963 0.0 0.0"/>
@@ -134,16 +120,6 @@
     <origin xyz="0.0 0.2 -1.5" rpy="1.5707963267948963 0.0 3.141592653589793"/>
     <parent link="right_leg"/>
     <child link="right_foot"/>
-  </joint>
-  <joint name="left_foot_to_left_foot_custom_frame" type="fixed">
-    <parent link="left_foot"/>
-    <child link="left_foot_custom_frame"/>
-    <origin xyz="0.0 -0.49258099999999994 -0.588001" rpy="0.0 0.0 0.0"/>
-  </joint>
-  <joint name="right_foot_to_right_foot_custom_frame" type="fixed">
-    <parent link="right_foot"/>
-    <child link="right_foot_custom_frame"/>
-    <origin xyz="1.0000000000000002 0.11109600000000008 -1.0" rpy="0.0 0.0 0.0"/>
   </joint>
   <gazebo reference="left_ankle">
     <preserveFixedJoint>true</preserveFixedJoint>
