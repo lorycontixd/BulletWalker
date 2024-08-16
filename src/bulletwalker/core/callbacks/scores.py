@@ -3,7 +3,6 @@ import numpy as np
 from bulletwalker import logging as log
 from bulletwalker.data.simulation_step import SimulationStep
 from bulletwalker.data.score_result import ScoreResult
-from typing import Dict
 
 
 class ScoreFunction(ABC):
@@ -75,7 +74,6 @@ class RootUpwardsScore(ScoreFunction):
         return ScoreResult(
             scores=scores,
             contributions=None,
-            total_score=np.mean(list(scores.values())),
         )
 
 
@@ -112,7 +110,6 @@ class ForwardScore(ScoreFunction):
         return ScoreResult(
             scores=scores,
             contributions=None,
-            total_score=np.mean(list(scores.values())),
         )
 
 
@@ -216,7 +213,6 @@ class CombinedScoreFunction(ScoreFunction):
         return ScoreResult(
             scores=models_scores,
             contributions=contributions,
-            total_score=np.mean(list(models_scores.values())),
         )
 
     def __add__(self, other) -> "CombinedScoreFunction":

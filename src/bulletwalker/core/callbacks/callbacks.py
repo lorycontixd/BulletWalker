@@ -40,6 +40,7 @@ class ScoreCallback(Callback):
         score_function: ScoreFunction,
         tracked_models: list = None,
         direction="minimize",
+        multiplier: float = 1.0,
     ):
         super().__init__(simulator)
         self.score_function = score_function
@@ -50,23 +51,29 @@ class ScoreCallback(Callback):
             tracked_models = [model.name for model in simulator.models]
         self.tracked_models = tracked_models
         self.history = []
+        self.multiplier = multiplier
 
     def on_simulation_start(self):
         self.history = []
         self.score_function.set_tracked_models(self.tracked_models)
 
     def on_simulation_step(self, simulation_step):
-        self.scores = self.score_function.calculate_score(
-            simulation_step, self.tracked_models
-        )
-        self.history.append(self.scores)
+        r = self.score_function.calculate_score(simulation_step, self.tracked_models)
+        r.total_score *= self.multiplier
+        r.scores = {k: v * self.multiplier for k, v in r.scores.items()}
+        r.contributions = {
+            k: {kk: vv * self.multiplier for kk, vv in v.items()}
+            for k, v in r.contributions.items()
+        }
+        self.result = r
+        self.history.append(self.result)
 
     def on_simulation_end(self):
         pass
 
     def reset(self):
         self.history = []
-        self.scores = {}
+        self.result = {}
 
 
 class EarlyStoppingCallback(Callback):
