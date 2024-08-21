@@ -131,7 +131,7 @@ class Model(ABC):
         self.angular_velocity = angular_velocity
 
         if call_pybullet and self.id >= 0:
-            linear_velocity = [30000.0, 10.0, 10.0]
+            # linear_velocity = [30000.0, 10.0, 10.0]
             log.debug(
                 f"Setting velocity of model {self.name} ({self.id}) to linear: {linear_velocity} and angular: {angular_velocity}"
             )
