@@ -61,7 +61,9 @@ class Robot(Model):
                 ),
             )
             pybullet.enableJointForceTorqueSensor(self.id, i, enableSensor=True)
-            log.debug(f"Setting joint {joint_name} to initial value")
+            log.debug(
+                f"Setting joint {joint_name} to initial value {self.joints[joint_name].initial_position}"
+            )
             pybullet.resetJointState(
                 self.id,
                 i,

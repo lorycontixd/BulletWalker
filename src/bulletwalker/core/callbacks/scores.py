@@ -11,7 +11,8 @@ class ScoreFunction(ABC):
     """
 
     @abstractmethod
-    def __init__(self):
+    def __init__(self, multiplier: float = 1.0):
+        self.multiplier = multiplier
         self.score_func_weight = 1.0
         self.tracked_models: list = []
 
@@ -42,8 +43,10 @@ class ScoreFunction(ABC):
 class RootUpwardsScore(ScoreFunction):
     """Score function that calculates a score based on the root upwards value of the robot, with respect to a reference value."""
 
-    def __init__(self, root_up_reference_value: float, a: float):
-        super().__init__()
+    def __init__(
+        self, root_up_reference_value: float, a: float, multiplier: float = 1.0
+    ):
+        super().__init__(multiplier=multiplier)
         self.root_up_reference_value = root_up_reference_value
         if a <= 0:
             log.warning(
@@ -65,8 +68,13 @@ class RootUpwardsScore(ScoreFunction):
                 if m in tracked_models or len(tracked_models) == 0
             ]
         )
-        vals = np.exp(
-            np.negative(self.a * np.abs(root_up_values - self.root_up_reference_value))
+        # vals = self.multiplier * np.exp(
+        #     np.negative(self.a * np.abs(root_up_values - self.root_up_reference_value))
+        # )
+        vals = self.multiplier * np.exp(
+            np.negative(
+                (1.0 / self.a) * (root_up_values - self.root_up_reference_value) ** 2
+            )
         )
 
         scores = dict(zip(tracked_models, vals))
@@ -80,8 +88,14 @@ class RootUpwardsScore(ScoreFunction):
 class ForwardScore(ScoreFunction):
     """Score function that calculates a score based on the forward value of the robot, with respect to a reference value."""
 
-    def __init__(self, forward_reference_value: float, a: float):
-        super().__init__()
+    def __init__(
+        self,
+        forward_reference_value: float,
+        a: float,
+        b: float,
+        multiplier: float = 1.0,
+    ):
+        super().__init__(multiplier=multiplier)
         self.forward_reference_value = forward_reference_value
         if a <= 0:
             log.warning(
@@ -89,6 +103,7 @@ class ForwardScore(ScoreFunction):
             )
             a = 1.0
         self.a = a
+        self.b = b
 
     def calculate_score(
         self, simulation_step: SimulationStep, tracked_models: list = None
@@ -97,13 +112,20 @@ class ForwardScore(ScoreFunction):
         if tracked_models is None:
             tracked_models = list(simulation_step.model_states.keys())
         scores = {
-            m: (2.0 / np.pi)
-            * np.arctan(
-                np.abs(
-                    simulation_step.model_states[m].base_position[0]
-                    - self.forward_reference_value
-                )
+            # m: (2.0 * self.multiplier / np.pi)
+            # * np.arctan(
+            #     np.abs(
+            #         simulation_step.model_states[m].base_position[0]
+            #         - self.forward_reference_value
+            #     )
+            # )
+            m: self.multiplier
+            * self.b
+            * (
+                simulation_step.model_states[m].base_position[0]
+                - self.forward_reference_value
             )
+            ** (2 * self.a)
             for m in simulation_step.model_states
             if m in tracked_models or len(tracked_models) == 0
         }

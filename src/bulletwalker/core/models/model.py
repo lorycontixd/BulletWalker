@@ -19,7 +19,7 @@ class Model(ABC):
         self._validate_kwargs(**kwargs)
         self.position = kwargs.get("position", np.zeros(3))
         self.orientation = kwargs.get("orientation", Quaternion.Identity())
-        self.velocity = kwargs.get("velocity", np.zeros(3))
+        self.velocity = kwargs.get("velocity", np.zeros(6))
         self.joints: Dict[str, JointInfo] = {}  # Remains empty in non-robot models
 
     def _validate_kwargs(self, **kwargs):
@@ -58,6 +58,9 @@ class Model(ABC):
         self.position = position
 
         if call_pybullet and self.id >= 0:
+            log.debug(
+                f"Setting position of model {self.name} ({self.id}) to {self.position}"
+            )
             pybullet.resetBasePositionAndOrientation(
                 self.id, self.position, self.orientation.elements
             )
@@ -66,13 +69,13 @@ class Model(ABC):
         self, orientation: Sequence | Quaternion = None, call_pybullet: bool = False
     ) -> None:
         if orientation is None:
-            orientation = Quaternion.Identity().elements
+            orientation = Quaternion.Identity()
         else:
             if isinstance(orientation, Quaternion):
-                orientation = orientation.elements
+                orientation = orientation
             else:
                 try:
-                    orientation = np.array(orientation, dtype=float)
+                    orientation = Quaternion(*np.array(orientation, dtype=float))
                     if not orientation.shape == (4,):
                         raise ValueError(
                             f"Invalid shape of orientation: {orientation.shape}. Expecting shape (4,)"
@@ -84,9 +87,55 @@ class Model(ABC):
         self.orientation = orientation
 
         if call_pybullet and self.id >= 0:
+            log.debug(
+                f"Setting orientation of model {self.name} ({self.id}) to {self.orientation}"
+            )
             pybullet.resetBasePositionAndOrientation(
                 self.id, self.position, self.orientation.elements
             )
+
+    def reset_velocity(
+        self,
+        linear_velocity: Sequence = None,
+        angular_velocity: Sequence = None,
+        call_pybullet: bool = False,
+    ) -> None:
+        if linear_velocity is None:
+            linear_velocity = np.zeros(3)
+        else:
+            try:
+                linear_velocity = np.array(linear_velocity, dtype=float)
+                if not linear_velocity.shape == (3,):
+                    raise ValueError(
+                        f"Invalid shape of linear velocity: {linear_velocity.shape}. Expecting shape (3,)"
+                    )
+            except ValueError:
+                raise ValueError(
+                    "Invalid type for linear velocity. Expecting sequence of floats (3)"
+                )
+        self.linear_velocity = linear_velocity
+
+        if angular_velocity is None:
+            angular_velocity = np.zeros(3)
+        else:
+            try:
+                angular_velocity = np.array(angular_velocity, dtype=float)
+                if not angular_velocity.shape == (3,):
+                    raise ValueError(
+                        f"Invalid shape of angular velocity: {angular_velocity.shape}. Expecting shape (3,)"
+                    )
+            except ValueError:
+                raise ValueError(
+                    "Invalid type for angular velocity. Expecting sequence of floats (3)"
+                )
+        self.angular_velocity = angular_velocity
+
+        if call_pybullet and self.id >= 0:
+            linear_velocity = [30000.0, 10.0, 10.0]
+            log.debug(
+                f"Setting velocity of model {self.name} ({self.id}) to linear: {linear_velocity} and angular: {angular_velocity}"
+            )
+            pybullet.resetBaseVelocity(self.id, linear_velocity, angular_velocity)
 
     def reset_pose(
         self,

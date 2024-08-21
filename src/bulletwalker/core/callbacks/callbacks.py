@@ -147,7 +147,7 @@ class EarlyStoppingCallback(Callback):
 
 
 class PrinterCallback(Callback):
-    """Callback to print wanted variables when included in the simulator.
+    """Callback to print tracked variables when included in the simulator.
 
     Args:
         Callback ([type]): [description]

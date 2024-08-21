@@ -118,15 +118,15 @@ class Simulator:
             log.debug(
                 f"Loaded model {model.name} with id {model.id} into simulator {self.name}"
             )
-            model.reset_position(model.position)
-            model.reset_orientation(model.orientation)
+            pybullet.changeDynamics(model.id, -1, linearDamping=0.0, angularDamping=0.0)
+            model.reset_position(model.position, call_pybullet=True)
+            model.reset_velocity(
+                model.velocity[0:3], model.velocity[3:6], call_pybullet=True
+            )
+            model.reset_orientation(model.orientation, call_pybullet=True)
             # print(
             #     f"Resetting model {model.name} to position {model.position} and orientation {model.orientation}"
             # )
-
-            pybullet.resetBasePositionAndOrientation(
-                model.id, model.position, model.orientation
-            )
 
     def get_model_states(self) -> Dict[str, ModelState]:
         model_states = {}
