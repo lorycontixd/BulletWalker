@@ -35,7 +35,7 @@ class LogFormatter(logging.Formatter):
         self.color = color
 
     def format(self, record, *args, **kwargs):
-        if self.color == True and record.levelno in self.COLOR_CODES:
+        if self.color and record.levelno in self.COLOR_CODES:
             record.color_on = self.COLOR_CODES[record.levelno]
             record.color_off = self.RESET_CODE
         else:
@@ -51,8 +51,7 @@ def _logger() -> logging.Logger:
 def configure(
     level: LoggingLevel = LoggingLevel.WARNING, file_path: str = None
 ) -> None:
-    info("Configuring the 'jaxsim-simulator' logger")
-    print("Configuring the 'jaxsim-simulator' logger")
+    info(f"Configuring the '{LOGGER_NAME}' logger")
 
     # Do not propagate the messages to handlers of parent loggers
     # (preventing duplicate logging)

@@ -2,12 +2,15 @@ import pybullet
 import pathlib
 import numpy as np
 import time
+import pybullet_data
 from bulletwalker import logging as log
 from bulletwalker.core.models.model import Model
-from bulletwalker.core.models.robot import Robot
 from bulletwalker.core.models.terrain import Terrain, PlaneTerrain
 from bulletwalker.core.callbacks import Callback
-from typing import Union, Tuple, List
+from bulletwalker.data.simulation_step import SimulationStep
+from bulletwalker.data.model_state import ModelState
+from bulletwalker import logging as log
+from typing import Union, Tuple, List, Dict
 from datetime import timedelta
 from dataclasses import dataclass
 
@@ -15,15 +18,6 @@ from dataclasses import dataclass
 @dataclass
 class PhysicsEngineParameters:
     timestep: float = 1.0 / 240
-
-
-@dataclass
-class SimulationStep:
-    index: int
-    time: float
-    score: float
-    loss: float
-    base_position: np.ndarray
 
 
 class Simulator:
@@ -44,7 +38,7 @@ class Simulator:
             )
         else:
             self.client: int = pybullet.connect(pybullet.DIRECT)
-
+        pybullet.setAdditionalSearchPath(pybullet_data.getDataPath())
         pybullet.setGravity(
             self.gravity[0],
             self.gravity[1],
@@ -55,12 +49,26 @@ class Simulator:
         if real_time:
             pybullet.setRealTimeSimulation(1, physicsClientId=self.client)
 
-        self.models: List[Model] = models
+        self.models: List[Model] = models if models else []
+        self._validate_model_input()
         self.terrain = None
 
         self.history: List[SimulationStep] = []
-        self.running = False
-        self.should_stop = False
+        self.reset()
+        self.state = ""
+
+    def _validate_model_input(self):
+        model_names = []
+        for i, model in enumerate(self.models):
+            if not isinstance(model, Model):
+                raise TypeError("Model must be an instance of the Model class")
+            if model.name in model_names:
+                log.warning(
+                    f"Two models share the same name: {model.name}. Renaming model at index {i} to {model.name}_{i}"
+                )
+                model.name = f"{model.name}_{i}"
+
+            model_names.append(model.name)
 
     def add_model(self, model: Model) -> None:
         if not isinstance(model, Model):
@@ -75,17 +83,12 @@ class Simulator:
         # Pass either a built terrain, a resource or a path to a terrain file
         # For now just load a plane
         if terrain is None:
-            path = (
-                pathlib.Path(__file__).parents[1]
-                / "assets"
-                / "urdfs"
-                / "terrains"
-                / "plane_terrain.urdf"
-            )
-            terrain = PlaneTerrain(path, rotation=np.array([0, 0, 0, 1]))
+            terrain = PlaneTerrain()
         else:
             if not isinstance(terrain, Terrain):
-                raise TypeError("Terrain must be an instance of the Terrain class")
+                raise TypeError(
+                    f"Terrain must be an instance of the Terrain class, but got {type(terrain)}"
+                )
 
         if self.terrain is not None:
             log.warning(
@@ -104,38 +107,68 @@ class Simulator:
                 self.terrain.id, self.terrain.position, self.terrain.orientation
             )
 
+        if len(self.models) == 0:
+            log.warning(
+                "No models to load into the simulator. If you defined some models, make sure you add them before calling load_models()"
+            )
+            return
+
         for model in self.models:
             model.load(pybullet.loadURDF(model.urdf_path))
-            model.reset_position(model.position)
-            model.reset_orientation(model.orientation)
-            print(
-                f"Resetting model {model.name} to position {model.position} and orientation {model.orientation}"
+            log.debug(
+                f"Loaded model {model.name} with id {model.id} into simulator {self.name}"
             )
-
-            pybullet.resetBasePositionAndOrientation(
-                model.id, model.position, model.orientation
+            log.debug(
+                f"Setting position of model {model.name} ({model.id}) to {model.position}, orientation to {model.orientation}, and velocity to {model.velocity}"
             )
+            pybullet.changeDynamics(model.id, -1, linearDamping=0.0, angularDamping=0.0)
+            model.reset_position(model.position, call_pybullet=True)
 
-    def get_model_states(self):
-        pass
+            model.reset_orientation(model.orientation, call_pybullet=True)
+            model.reset_velocity(
+                model.velocity[:3], model.velocity[3:6], call_pybullet=True
+            )
+            model.apply_initial_force(model.force)
 
-    def step(self):
+    def get_model_states(self) -> Dict[str, ModelState]:
+        model_states = {}
+        for model in self.models:
+            model_states[model.name] = model.get_model_state()
+        return model_states
+
+    def step(self, index: int = 0, callbacks=[]) -> SimulationStep:
         for model in self.models:
             model.step()
         pybullet.stepSimulation(physicsClientId=self.client)
 
-        # for model in self.models:
-        #    model.post_step()
+        # Build simulation step
+        step = SimulationStep(
+            index,
+            self.t,
+            time.time() - self.sim_start if self.sim_start else 0.0,
+            0.0,
+            self.get_model_states(),
+        )
+
+        for callback in callbacks:
+            callback.on_simulation_step(step)
+
+        return step
 
     def reset(self) -> None:
         self.should_stop = False
         self.t: float = 0.0
+        self._iter: int = 0
+        self.history = []
+        self.sim_start = None
+        self.running = False
 
     def run(
         self,
         dt: float = 1.0 / 240,
         tf: float = 2.0,
         frozen_run: bool = False,
+        max_iterations=-1,
         callbacks: List[Callback] = [],
     ) -> None:
         if dt <= 0:
@@ -148,13 +181,17 @@ class Simulator:
             log.warning(
                 "Time step is smaller than 1e-4 seconds. Simulations may be slow or may diverge."
             )
+
+        log.info(
+            f"Running simulation {self.name} for {tf} seconds with time step {dt} seconds."
+        )
+
         pybullet.setTimeStep(dt, physicsClientId=self.client)
         self.reset()
-        start = time.time()
+        self.sim_start = time.time()
         self.running = True
-        log.info(f"Starting simulation {self.name}")
         for callback in callbacks:
-            callback.on_simulation_start(self)
+            callback.on_simulation_start()
 
         if frozen_run:
             while True:
@@ -165,21 +202,24 @@ class Simulator:
                 self.running = False
                 break
             # tik = time.time()
-            self.step()
+            step = self.step(index=self._iter, callbacks=callbacks)
+            self.history.append(step)
             # tok = time.time()
-            for callback in callbacks:
-                callback.on_simulation_step(
-                    self, SimulationStep(index=0, time=self.t, score=0.0, loss=0.0)
-                )
 
             self.t += dt
             if self.t >= tf:
                 self.running = False
+            self._iter += 1
+            if max_iterations > 0 and self._iter > max_iterations:
+                self.running = False
             time.sleep(dt)
         end = time.time()
+        for callback in callbacks:
+            callback.on_simulation_end()
         log.info(
-            f"Simulation finished in {timedelta(seconds=time.time()-start)} ({end-start:.2f} seconds) with {self.t:.2f} simulated seconds."
+            f"Simulation finished in {timedelta(seconds=time.time()-self.sim_start)} ({end-self.sim_start:.2f} seconds) with {self.t:.2f} simulated seconds."
         )
 
     def close(self) -> None:
+        log.debug("Closing simulator")
         pybullet.disconnect(physicsClientId=self.client)
