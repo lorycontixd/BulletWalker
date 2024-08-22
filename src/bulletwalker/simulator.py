@@ -118,15 +118,18 @@ class Simulator:
             log.debug(
                 f"Loaded model {model.name} with id {model.id} into simulator {self.name}"
             )
+            log.debug(
+                f"Setting position of model {model.name} ({model.id}) to {model.position}, orientation to {model.orientation}, and velocity to {model.velocity}"
+            )
             pybullet.changeDynamics(model.id, -1, linearDamping=0.0, angularDamping=0.0)
             model.reset_position(model.position, call_pybullet=True)
+
+            print(f"-- linvel: {model.velocity}, angvel: {model.velocity[3:6]}")
+
+            # model.reset_orientation(model.orientation, call_pybullet=True)
             model.reset_velocity(
-                model.velocity[0:3], model.velocity[3:6], call_pybullet=True
+                model.velocity[:3], model.velocity[3:6], call_pybullet=True
             )
-            model.reset_orientation(model.orientation, call_pybullet=True)
-            # print(
-            #     f"Resetting model {model.name} to position {model.position} and orientation {model.orientation}"
-            # )
 
     def get_model_states(self) -> Dict[str, ModelState]:
         model_states = {}
@@ -179,11 +182,15 @@ class Simulator:
             log.warning(
                 "Time step is smaller than 1e-4 seconds. Simulations may be slow or may diverge."
             )
+
+        log.info(
+            f"Running simulation {self.name} for {tf} seconds with time step {dt} seconds."
+        )
+
         pybullet.setTimeStep(dt, physicsClientId=self.client)
         self.reset()
         self.sim_start = time.time()
         self.running = True
-        log.info(f"Starting simulation {self.name}")
         for callback in callbacks:
             callback.on_simulation_start()
 

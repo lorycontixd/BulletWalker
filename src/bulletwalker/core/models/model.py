@@ -20,6 +20,18 @@ class Model(ABC):
         self.position = kwargs.get("position", np.zeros(3))
         self.orientation = kwargs.get("orientation", Quaternion.Identity())
         self.velocity = kwargs.get("velocity", np.zeros(6))
+
+        # Ensure that velocity is a numpy array of shape (6,)
+        if not isinstance(self.velocity, np.ndarray):
+            self.velocity = np.array(self.velocity, dtype=float)
+        if self.velocity.shape == (3,):
+            self.velocity = np.concatenate((self.velocity, np.zeros(3)))
+        if not self.velocity.shape == (6,):
+            raise ValueError(
+                f"Invalid shape of velocity: {self.velocity.shape}. Expecting shape (6,)"
+            )
+
+        # Joints are only relevant for robot models
         self.joints: Dict[str, JointInfo] = {}  # Remains empty in non-robot models
 
     def _validate_kwargs(self, **kwargs):
@@ -54,7 +66,6 @@ class Model(ABC):
             raise ValueError(
                 f"Invalid shape of initial position: {position.shape}. Expecting shape (3,)"
             )
-        log.debug(f"Setting position of model {self.name} to {position}")
         self.position = position
 
         if call_pybullet and self.id >= 0:
@@ -126,12 +137,11 @@ class Model(ABC):
                     )
             except ValueError:
                 raise ValueError(
-                    "Invalid type for angular velocity. Expecting sequence of floats (3)"
+                    f"Invalid type for angular velocity: {type(angular_velocity)} ({angular_velocity.shape}). Expecting sequence of floats (3)"
                 )
         self.angular_velocity = angular_velocity
 
         if call_pybullet and self.id >= 0:
-            # linear_velocity = [30000.0, 10.0, 10.0]
             log.debug(
                 f"Setting velocity of model {self.name} ({self.id}) to linear: {linear_velocity} and angular: {angular_velocity}"
             )
