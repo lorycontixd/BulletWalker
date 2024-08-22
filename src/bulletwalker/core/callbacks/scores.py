@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
+import enum
 from bulletwalker import logging as log
 from bulletwalker.data.simulation_step import SimulationStep
 from bulletwalker.data.score_result import ScoreResult
@@ -26,7 +27,7 @@ class ScoreFunction(ABC):
     ):
         # if self.tracked_models is None or len(self.tracked_models) == 0:
         #    self.tracked_models = simulation_step.model_states.keys()
-        if tracked_models is None:
+        if tracked_models is None or len(tracked_models) == 0:
             tracked_models = self.tracked_models
 
     def set_tracked_models(self, tracked_models: list):
@@ -59,7 +60,7 @@ class RootUpwardsScore(ScoreFunction):
         self, simulation_step: SimulationStep, tracked_models: list
     ) -> np.ndarray:
         super().calculate_score(simulation_step, tracked_models)
-        if tracked_models is None:
+        if tracked_models is None or len(tracked_models) == 0:
             tracked_models = list(simulation_step.model_states.keys())
         root_up_values = np.array(
             [
@@ -109,7 +110,7 @@ class ForwardScore(ScoreFunction):
         self, simulation_step: SimulationStep, tracked_models: list = None
     ):
         super().calculate_score(simulation_step, tracked_models)
-        if tracked_models is None:
+        if tracked_models is None or len(tracked_models) == 0:
             tracked_models = list(simulation_step.model_states.keys())
         scores = {
             # m: (2.0 * self.multiplier / np.pi)
@@ -135,55 +136,57 @@ class ForwardScore(ScoreFunction):
         )
 
 
-class VelocityChangeScore(ScoreFunction):
-    def __init__(self, velocity_delta: float = 0.01):
-        super().__init__()
-        self.velocity_delta = velocity_delta
-        self.reset()
-        self.last_angular_velocities = {}
-        self.last_time = None
+class RobotStepScore(ScoreFunction):
+    """Score function that rewards each step of a robot model. The score is calculated as the number of steps the robot model has taken."""
 
-    def reset(self):
-        self.score = 0
+    class StepMethod(enum.IntEnum):
+        """Method to calculate the step score."""
+
+        VELOCITY_CHANGE = 0
+        CONTACT_DETECTION = 1
+
+    def __init__(
+        self,
+        score_per_step: float = 100.0,
+        step_method: StepMethod = StepMethod.CONTACT_DETECTION,
+    ) -> None:
+        super().__init__(multiplier=1.0)
+        self.score_per_step = score_per_step
+        self.step_method = step_method
 
     def calculate_score(
-        self, simulation_step: SimulationStep, tracked_models: list = None
+        self,
+        simulation_step: SimulationStep,
+        tracked_models: list = None,
     ):
-        super().calculate_score(simulation_step, tracked_models)
-        if tracked_models is None:
+        super().calculate_score(simulation_step)
+        if tracked_models is None or len(tracked_models) == 0:
             tracked_models = list(simulation_step.model_states.keys())
-        if self.last_angular_velocities is not None:
-            scores = {}
-            for model in tracked_models:
-                if model not in self.last_angular_velocities:
-                    log.warning(
-                        f"Model {model} not found in last angular velocities. Skipping..."
-                    )
-                    continue
-                current_angular_velocity = simulation_step.model_states[
-                    model
-                ].base_angular_velocity
-                if current_angular_velocity * self.last_angular_velocities[model] < 0:
-                    scores[model] = 1.0
-                else:
-                    scores[model] = 0.0
-            self.last_angular_velocities = {
-                model: simulation_step.model_states[model].base_angular_velocity
-                for model in tracked_models
-            }
-            self.last_time = simulation_step.time
-        else:
-            self.last_angular_velocities = {
-                model: simulation_step.model_states[model].base_angular_velocity
-                for model in tracked_models
-            }
-            self.last_time = simulation_step.time
-            scores = dict.fromkeys(tracked_models, 0.0)
-        return ScoreResult(
-            scores=scores,
-            contributions=None,
-            total_score=np.mean(list(scores.values())),
+        raise NotImplementedError(
+            "RobotStepScore is not yet implemented. Please use another score function."
         )
+
+        if self.step_method == RobotStepScore.StepMethod.VELOCITY_CHANGE:
+            # Calculate the velocity change of the model
+            # A step is a change in sign of the velocity of the model along the forward direction (roll)
+
+            model_base_linear_velocities = {
+                m: simulation_step.model_states[m].base_linear_velocity
+                for m in simulation_step.model_states
+                if m in tracked_models or len(tracked_models) == 0
+            }
+            model_base_angular_velocities = {
+                m: simulation_step.model_states[m].base_angular_velocity
+                for m in simulation_step.model_states
+                if m in tracked_models or len(tracked_models) == 0
+            }
+
+        elif self.step_method == RobotStepScore.StepMethod.CONTACT_DETECTION:
+            pass
+        else:
+            raise ValueError(
+                f"Step method {self.step_method} is not implemented or is not allowed."
+            )
 
 
 class CombinedScoreFunction(ScoreFunction):
