@@ -136,57 +136,55 @@ class ForwardScore(ScoreFunction):
         )
 
 
-class RobotStepScore(ScoreFunction):
-    """Score function that rewards each step of a robot model. The score is calculated as the number of steps the robot model has taken."""
+class HumanoidRobotStepScore(ScoreFunction, ABC):
+    """Score function that rewards each step of a robot model The score is calculated as the number of steps the robot model has taken.
 
-    class StepMethod(enum.IntEnum):
-        """Method to calculate the step score."""
-
-        VELOCITY_CHANGE = 0
-        CONTACT_DETECTION = 1
+    Note: The score function is only applicable to humanoid robot models.
+    """
 
     def __init__(
         self,
-        score_per_step: float = 100.0,
-        step_method: StepMethod = StepMethod.CONTACT_DETECTION,
+        score_per_step: float,
     ) -> None:
         super().__init__(multiplier=1.0)
         self.score_per_step = score_per_step
-        self.step_method = step_method
 
     def calculate_score(
         self,
         simulation_step: SimulationStep,
         tracked_models: list = None,
     ):
-        super().calculate_score(simulation_step)
-        if tracked_models is None or len(tracked_models) == 0:
-            tracked_models = list(simulation_step.model_states.keys())
+        super().calculate_score(simulation_step, tracked_models)
+        return
+
+
+class HumanoidRobotContactStepScore(HumanoidRobotStepScore):
+    def __init__(
+        self,
+        score_per_step: float = 100.0,
+        feet_links: list = ["left_foot", "right_foot"],
+    ):
+        super().__init__(score_per_step=score_per_step)
+        self.feet_links = feet_links
+
+    def calculate_score(
+        self, simulation_step: SimulationStep, tracked_models: list = None
+    ):
         raise NotImplementedError(
-            "RobotStepScore is not yet implemented. Please use another score function."
+            "HumanoidRobotContactScore.calculate_score is not implemented yet"
         )
 
-        if self.step_method == RobotStepScore.StepMethod.VELOCITY_CHANGE:
-            # Calculate the velocity change of the model
-            # A step is a change in sign of the velocity of the model along the forward direction (roll)
 
-            model_base_linear_velocities = {
-                m: simulation_step.model_states[m].base_linear_velocity
-                for m in simulation_step.model_states
-                if m in tracked_models or len(tracked_models) == 0
-            }
-            model_base_angular_velocities = {
-                m: simulation_step.model_states[m].base_angular_velocity
-                for m in simulation_step.model_states
-                if m in tracked_models or len(tracked_models) == 0
-            }
+class HumanoidRobotVelocityChangeStepScore(HumanoidRobotStepScore):
+    def __init__(self, score_per_step: float = 100.0):
+        super().__init__(score_per_step=score_per_step)
 
-        elif self.step_method == RobotStepScore.StepMethod.CONTACT_DETECTION:
-            pass
-        else:
-            raise ValueError(
-                f"Step method {self.step_method} is not implemented or is not allowed."
-            )
+    def calculate_score(
+        self, simulation_step: SimulationStep, tracked_models: list = None
+    ):
+        raise NotImplementedError(
+            "HumanoidRobotVelocityChangeScore.calculate_score is not implemented yet"
+        )
 
 
 class CombinedScoreFunction(ScoreFunction):
