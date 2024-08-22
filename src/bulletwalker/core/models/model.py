@@ -164,7 +164,9 @@ class Model(ABC):
         self.reset_position(position)
         self.reset_orientation(orientation)
 
-    def apply_initial_force(self, force: Sequence[float] = None) -> None:
+    def apply_initial_force(
+        self, force: Sequence[float] = None, multiplier: float = 1.0
+    ) -> None:
         if force is None:
             log.warning("No initial force provided. Applying zero force")
             force = np.zeros(6)
@@ -183,7 +185,11 @@ class Model(ABC):
             f"Applying initial force {self.force} to model {self.name} ({self.id})"
         )
         pybullet.applyExternalForce(
-            self.id, -1, self.force, [0, 0, 0], pybullet.LINK_FRAME
+            self.id,
+            -1,
+            np.array(self.force) * multiplier,
+            [0, 0, 0],
+            pybullet.LINK_FRAME,
         )
 
     @abstractmethod
