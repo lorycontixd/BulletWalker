@@ -20,6 +20,7 @@ class Model(ABC):
         self.position = kwargs.get("position", np.zeros(3))
         self.orientation = kwargs.get("orientation", Quaternion.Identity())
         self.velocity = kwargs.get("velocity", np.zeros(6))
+        self.force = kwargs.get("force", np.zeros(3))
 
         # Ensure that velocity is a numpy array of shape (6,)
         if not isinstance(self.velocity, np.ndarray):
@@ -31,11 +32,19 @@ class Model(ABC):
                 f"Invalid shape of velocity: {self.velocity.shape}. Expecting shape (6,)"
             )
 
+        # Ensure that force is a numpy array of shape (6,)
+        if not isinstance(self.force, np.ndarray):
+            self.force = np.array(self.force, dtype=float)
+        if not self.force.shape == (3,):
+            raise ValueError(
+                f"Invalid shape of force: {self.force.shape}. Expecting shape (3,)"
+            )
+
         # Joints are only relevant for robot models
         self.joints: Dict[str, JointInfo] = {}  # Remains empty in non-robot models
 
     def _validate_kwargs(self, **kwargs):
-        valid_kwargs = ("position", "orientation", "velocity", "joints")
+        valid_kwargs = ("position", "orientation", "velocity", "joints", "force")
         for key in kwargs:
             if key not in valid_kwargs:
                 raise ValueError(
@@ -154,6 +163,28 @@ class Model(ABC):
     ) -> None:
         self.reset_position(position)
         self.reset_orientation(orientation)
+
+    def apply_initial_force(self, force: Sequence[float] = None) -> None:
+        if force is None:
+            log.warning("No initial force provided. Applying zero force")
+            force = np.zeros(6)
+        else:
+            try:
+                force = np.array(force, dtype=float)
+                if not force.shape == (3,):
+                    raise ValueError(
+                        f"Invalid shape of force: {force.shape}. Expecting shape (3,)"
+                    )
+            except ValueError:
+                raise ValueError(
+                    "Invalid type for force. Expecting sequence of floats (3)"
+                )
+        log.debug(
+            f"Applying initial force {self.force} to model {self.name} ({self.id})"
+        )
+        pybullet.applyExternalForce(
+            self.id, -1, self.force, [0, 0, 0], pybullet.LINK_FRAME
+        )
 
     @abstractmethod
     def get_model_state(self) -> ModelState:
