@@ -126,7 +126,7 @@ class Simulator:
 
             print(f"-- linvel: {model.velocity}, angvel: {model.velocity[3:6]}")
 
-            # model.reset_orientation(model.orientation, call_pybullet=True)
+            model.reset_orientation(model.orientation, call_pybullet=True)
             model.reset_velocity(
                 model.velocity[:3], model.velocity[3:6], call_pybullet=True
             )
