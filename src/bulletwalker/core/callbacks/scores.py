@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import enum
+from typing import List, Dict
 from bulletwalker import logging as log
 from bulletwalker.data.simulation_step import SimulationStep
 from bulletwalker.data.score_result import ScoreResult
@@ -159,19 +160,38 @@ class HumanoidRobotStepScore(ScoreFunction, ABC):
 
 
 class HumanoidRobotContactStepScore(HumanoidRobotStepScore):
-    def __init__(
-        self,
-        score_per_step: float = 100.0,
-        feet_links: list = ["left_foot", "right_foot"],
-    ):
+    def __init__(self, score_per_step: float, feet_links: Dict[str, List[int]] = []):
         super().__init__(score_per_step=score_per_step)
         self.feet_links = feet_links
+        self.last_foot_contact = -1
+        self.scores = {}
 
     def calculate_score(
         self, simulation_step: SimulationStep, tracked_models: list = None
     ):
-        raise NotImplementedError(
-            "HumanoidRobotContactScore.calculate_score is not implemented yet"
+        super().calculate_score(simulation_step, tracked_models)
+        if tracked_models is None or len(tracked_models) == 0:
+            tracked_models = list(simulation_step.model_states.keys())
+
+        # Check if any of the feet links are in contact
+        for m in tracked_models:
+            if m not in self.scores:
+                self.scores[m] = 0.0
+            links_in_contact = [
+                simulation_step.model_states[m].contact_points[link_pair].linkIndexA
+                for (link_pair, contact_info) in simulation_step.model_states[
+                    m
+                ].contact_points.items()
+            ]
+            link_in_contact = links_in_contact[0] if len(links_in_contact) > 0 else -1
+            if link_in_contact in self.feet_links[m]:
+                if link_in_contact != self.last_foot_contact:
+                    self.scores[m] += self.score_per_step
+                    self.last_foot_contact_change_index = simulation_step.index
+                self.last_foot_contact = link_in_contact
+        return ScoreResult(
+            scores=self.scores,
+            contributions=dict(),
         )
 
 
