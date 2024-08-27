@@ -160,10 +160,17 @@ class HumanoidRobotStepScore(ScoreFunction, ABC):
 
 
 class HumanoidRobotContactStepScore(HumanoidRobotStepScore):
-    def __init__(self, score_per_step: float, feet_links: Dict[str, List[int]] = []):
+    def __init__(
+        self,
+        score_per_step: float,
+        feet_links: Dict[str, List[int]] = [],
+        step_delay_ms: float = 500.0,
+    ):
         super().__init__(score_per_step=score_per_step)
         self.feet_links = feet_links
         self.last_foot_contact = -1
+        self.last_foot_contact_time = -1
+        self.step_delay_ms = step_delay_ms
         self.scores = {}
 
     def calculate_score(
@@ -186,9 +193,17 @@ class HumanoidRobotContactStepScore(HumanoidRobotStepScore):
             link_in_contact = links_in_contact[0] if len(links_in_contact) > 0 else -1
             if link_in_contact in self.feet_links[m]:
                 if link_in_contact != self.last_foot_contact:
-                    self.scores[m] += self.score_per_step
+                    if (
+                        simulation_step.real_time * 1000
+                        - self.last_foot_contact_time_ms
+                        > self.step_delay_ms
+                    ):
+                        # Update the score only if the foot contact has changed after the delay
+                        self.scores[m] += self.score_per_step
+                    # The foot contact has changed anyways, so update the last foot contact
+                    self.last_foot_contact = link_in_contact
                     self.last_foot_contact_change_index = simulation_step.index
-                self.last_foot_contact = link_in_contact
+                    self.last_foot_contact_time_ms = simulation_step.real_time * 1000
         return ScoreResult(
             scores=self.scores,
             contributions=dict(),
