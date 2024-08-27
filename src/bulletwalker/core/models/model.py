@@ -19,18 +19,33 @@ class Model(ABC):
         self._validate_kwargs(**kwargs)
         self.position = kwargs.get("position", np.zeros(3))
         self.orientation = kwargs.get("orientation", Quaternion.Identity())
-        self.velocity = kwargs.get("velocity", np.zeros(6))
+        self.velocities = kwargs.get("velocities", dict())
         self.forces = kwargs.get("forces", dict())
 
-        # Ensure that velocity is a numpy array of shape (6,)
-        if not isinstance(self.velocity, np.ndarray):
-            self.velocity = np.array(self.velocity, dtype=float)
-        if self.velocity.shape == (3,):
-            self.velocity = np.concatenate((self.velocity, np.zeros(3)))
-        if not self.velocity.shape == (6,):
+        # Ensure that velocities is a dictionary of callbacks that take a float as input and return an array of shape (6,)
+        if not isinstance(self.velocities, dict):
             raise ValueError(
-                f"Invalid shape of velocity: {self.velocity.shape}. Expecting shape (6,)"
+                f"Invalid type for velocities: {type(self.velocities)}. Expecting dictionary"
             )
+        for key, value in self.velocities.items():
+            if not callable(value):
+                raise ValueError(
+                    f"Invalid type for velocities callback {key}: {type(value)}. Expecting callable"
+                )
+            try:
+                velocity = value(0.0)
+                if not isinstance(velocity, np.ndarray):
+                    raise ValueError(
+                        f"Invalid type for velocities callback {key}. Expecting numpy array"
+                    )
+                if not velocity.shape == (6,):
+                    raise ValueError(
+                        f"Invalid shape of velocities callback {key}: {velocity.shape}. Expecting shape (6,)"
+                    )
+            except Exception as e:
+                raise ValueError(
+                    f"Error while calling velocities callback {key}: {e}. Expecting callable that takes a float as input and returns a numpy array of shape (6,)"
+                )
 
         # Ensure that force is a dictionary of callbacks that take a float as input and return an array of shape (3,)
         if not isinstance(self.forces, dict):
@@ -62,7 +77,13 @@ class Model(ABC):
         self.joints: Dict[str, JointInfo] = {}  # Remains empty in non-robot models
 
     def _validate_kwargs(self, **kwargs):
-        valid_kwargs = ("position", "orientation", "velocity", "joints", "forces")
+        valid_kwargs = (
+            "position",
+            "orientation",
+            "velocities",
+            "joints",
+            "forces",
+        )
         for key in kwargs:
             if key not in valid_kwargs:
                 raise ValueError(
@@ -79,7 +100,35 @@ class Model(ABC):
     @abstractmethod
     def step(self, t: float) -> None:
         if self.id < 0:
-            raise ValueError("[Model.step]Model ID is not set. Load model first.")
+            raise ValueError("[Model.step] Model ID is not set. Load model first.")
+
+        # Apply velocities
+        for key, value in self.velocities.items():
+            try:
+                link_id = (
+                    [item for item in self.get_link_ids() if item[0] == key][0][1]
+                    if key != "base"
+                    else -1
+                )
+                velocity = value(t)
+                if not velocity.shape == (6,):
+                    raise ValueError(
+                        f"Invalid shape of velocity {key}: {velocity.shape}. Expecting shape (6,)"
+                    )
+
+                if not np.equal(velocity, np.zeros(6)).all():
+                    log.debug(
+                        f"Applying velocity {velocity} to link {key} of model {self.name} ({self.id})"
+                    )
+                    pybullet.resetBaseVelocity(self.id, velocity[:3], velocity[3:6])
+            except IndexError:
+                if key not in self.unfound_links:
+                    self.unfound_links.append(key)
+                    log.warning(
+                        f"Link {key} not found in model {self.name}. Skipping velocity application."
+                    )
+
+        # Apply forces
         for key, value in self.forces.items():
             try:
                 link_id = (

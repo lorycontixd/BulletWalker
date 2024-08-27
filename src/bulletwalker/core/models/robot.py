@@ -36,7 +36,7 @@ class Robot(Model):
         for joint in self.initial_joints:
             if joint not in joint_names:
                 raise ValueError(
-                    f"Passed joint {joint} is not present in the robot model. Available joints: {joint_names}"
+                    f"Joint {joint} is not present in the robot model. Available joints: {joint_names}"
                 )
 
     def _initialize_joints(self):
@@ -53,7 +53,12 @@ class Robot(Model):
                 initial_position=(
                     self.initial_joints[joint_name].initial_position
                     if joint_name in self.initial_joints
-                    else 0
+                    else 0.0
+                ),
+                initial_velocity=(
+                    self.initial_joints[joint_name].initial_velocity
+                    if joint_name in self.initial_joints
+                    else 0.0
                 ),
                 control_metric=(
                     self.initial_joints[joint_name].control_metric
@@ -69,6 +74,7 @@ class Robot(Model):
                 self.id,
                 i,
                 self.joints[joint_name].initial_position,
+                self.joints[joint_name].initial_velocity,
             )
 
         log.info(f"Loaded joints for robot {self.name}. DOFs: {self.dofs}")
@@ -77,14 +83,7 @@ class Robot(Model):
         if self.id < 0:
             raise ValueError("Robot ID is not set. Load model first.")
 
-        for i in range(self.dofs):
-            new_info = pybullet.getJointInfo(self.id, i)
-            joint_name = str(new_info[1].decode("utf-8"))
-            self.joints[joint_name] = JointInfo(
-                new_info,
-                initial_position=self.joints[joint_name].initial_position,
-                control_metric=self.joints[joint_name].control_metric,
-            )
+        raise NotImplementedError("Method 'Robot._update_joints' not implemented")
 
     def reset_joints(self) -> None:
         if self.id < 0:

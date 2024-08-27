@@ -1,5 +1,7 @@
 import enum
 import numpy as np
+import pathlib
+from typing import List, Dict
 from bulletwalker import logging as log
 from .scores import ScoreFunction
 from abc import ABC, abstractmethod
@@ -172,3 +174,73 @@ class PrinterCallback(Callback):
 
     def on_simulation_end(self):
         print("Simulation ended")
+
+
+class TrackerCallback(Callback):
+    """Callback to track variables in the simulation and store them in a list.
+
+    Args:
+        Callback ([type]): [description]
+
+    """
+
+    def __init__(self, simulator, variables: List[str]):
+        super().__init__(simulator)
+        self.variables = variables
+        self.history = []
+
+    def on_simulation_start(self):
+        self.history = []
+
+    def on_simulation_step(self, simulation_step):
+        for var in self.variables:
+            pass
+
+    def on_simulation_end(self):
+        pass
+
+    def reset(self):
+        self.history = []
+
+
+# class GraphingCallback(Callback):
+#     """
+#     Callback to graph tracked variables when included in the simulator.
+#     """
+
+#     def __init__(self, simulator, variables, output_dir=None):
+#         """
+#         Initialize the callback.
+
+#         Args:
+#             simulator (Simulator): The simulator object.
+#             variables (list): List of variables to track. Each variable be present in the simulation step object.
+#             output_dir (str, optional): Output directory for the graphs. Defaults to None (./output/graphs).
+
+#         Note:
+#             Each variable must be in the form 'model.property.attribute' where 'object' is a key in the simulation step object.
+#             - An object must be a model
+#             - A property can be a link or a joint
+#             - An attribute can be a position, orientation, velocity, force, etc
+
+#             For example: 'robot.base.position', 'robot_name.joint_name.position', 'robot.joint1.velocity'
+#         """
+#         super().__init__(simulator=simulator)
+#         self.variables = variables
+#         if output_dir is None:
+#             output_dir = pathlib.Path("./") / "output" / "graphs"
+#         else:
+#             if not isinstance(output_dir, (str, pathlib.Path)):
+#                 raise ValueError("Output directory must be a string or pathlib.Path")
+#             if isinstance(output_dir, str):
+#                 output_dir = pathlib.Path(output_dir)
+#         output_dir.mkdir(parents=True, exist_ok=True)
+
+#     def on_simulation_start(self):
+#         pass
+
+#     def on_simulation_step(self, simulation_step):
+#         pass
+
+#     def on_simulation_end(self):
+#         pass
