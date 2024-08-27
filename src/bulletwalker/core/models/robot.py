@@ -7,6 +7,7 @@ from bulletwalker.data.joint_info import JointInfo
 from bulletwalker.data.joint_data import JointData, ControlMetric
 from bulletwalker.data.joint_state import JointState
 from bulletwalker.data.model_state import ModelState
+from bulletwalker.data.contact_info import ContactInfo
 from bulletwalker.core.math.quaternion import Quaternion
 from bulletwalker import logging as log
 
@@ -146,20 +147,47 @@ class Robot(Model):
             total_mass += joint_mass
         return total_mass
 
-    def get_model_state(model: Model) -> ModelState:
-        _pos, _or = pybullet.getBasePositionAndOrientation(model.id)
-        velocities = pybullet.getBaseVelocity(model.id)
+    def get_model_state(self: Model) -> ModelState:
+        _pos, _or = pybullet.getBasePositionAndOrientation(self.id)
+        velocities = pybullet.getBaseVelocity(self.id)
         lin_vel = velocities[0]
         ang_vel = velocities[1]
-        joints = [j for j in model.joints]
+        joints = [j for j in self.joints]
         joint_states = {
-            j: JointState(pybullet.getJointState(model.id, model.joints[j].index))
+            j: JointState(pybullet.getJointState(self.id, self.joints[j].index))
             for j in joints
         }
+
+        contacts = pybullet.getContactPoints(self.id)
+        contact_infos = {}
+        for contact in contacts:
+            bodyA = contact[1]
+            bodyB = contact[2]
+            bodyA_name = pybullet.getBodyInfo(bodyA)[1].decode("utf-8")
+            bodyB_name = pybullet.getBodyInfo(bodyB)[1].decode("utf-8")
+            contact_info = ContactInfo(
+                bodyA,
+                bodyB,
+                contact[3],
+                contact[4],
+                contact[5],
+                contact[6],
+                contact[7],
+                contact[8],
+                contact[9],
+                contact[10],
+                contact[11],
+                contact[12],
+                contact[13],
+            )
+            contact_infos[(bodyA_name, bodyB_name)] = contact_info
+
         return ModelState(
+            model_id=self.id,
             base_position=np.array(_pos),
             base_orientation=Quaternion(_or),
             base_linear_velocity=lin_vel,
             base_angular_velocity=ang_vel,
             joint_states=joint_states,
+            contact_points=contact_infos,
         )

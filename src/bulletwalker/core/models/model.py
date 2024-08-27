@@ -44,7 +44,7 @@ class Model(ABC):
         self.joints: Dict[str, JointInfo] = {}  # Remains empty in non-robot models
 
     def _validate_kwargs(self, **kwargs):
-        valid_kwargs = ("position", "orientation", "velocity", "joints", "force")
+        valid_kwargs = ("position", "orientation", "velocity", "joints", "forces")
         for key in kwargs:
             if key not in valid_kwargs:
                 raise ValueError(
