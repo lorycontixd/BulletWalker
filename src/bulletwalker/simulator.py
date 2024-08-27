@@ -115,6 +115,7 @@ class Simulator:
 
         for model in self.models:
             model.load(pybullet.loadURDF(model.urdf_path))
+
             log.debug(
                 f"Loaded model {model.name} with id {model.id} into simulator {self.name}"
             )
@@ -128,7 +129,7 @@ class Simulator:
             model.reset_velocity(
                 model.velocity[:3], model.velocity[3:6], call_pybullet=True
             )
-            model.apply_initial_force(model.force)
+            # model.apply_initial_force(model.force)
 
     def get_model_states(self) -> Dict[str, ModelState]:
         model_states = {}
@@ -138,7 +139,7 @@ class Simulator:
 
     def step(self, index: int = 0, callbacks=[]) -> SimulationStep:
         for model in self.models:
-            model.step()
+            model.step(self.t)
         pybullet.stepSimulation(physicsClientId=self.client)
 
         # Build simulation step

@@ -102,9 +102,9 @@ class Robot(Model):
                 ),
             )
 
-    def step(self) -> None:
-        if self.id < 0:
-            raise ValueError("Robot ID is not set. Load model first.")
+    def step(self, t: float) -> None:
+
+        super().step(t=t)
 
         if self.i == 0:
             pybullet.applyExternalForce(
