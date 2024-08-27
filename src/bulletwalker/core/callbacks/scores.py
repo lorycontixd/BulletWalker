@@ -169,7 +169,7 @@ class HumanoidRobotContactStepScore(HumanoidRobotStepScore):
         super().__init__(score_per_step=score_per_step)
         self.feet_links = feet_links
         self.last_foot_contact = -1
-        self.last_foot_contact_time = -1
+        self.last_foot_contact_time_ms = -1
         self.step_delay_ms = step_delay_ms
         self.scores = {}
 
