@@ -24,7 +24,7 @@ class Model(ABC):
 
         # Ensure that velocities is a dictionary of callbacks that take a float as input and return an array of shape (6,)
         if not isinstance(self.velocities, dict):
-            raise ValueError(
+            raise TypeError(
                 f"Invalid type for velocities: {type(self.velocities)}. Expecting dictionary"
             )
         for key, value in self.velocities.items():
@@ -32,24 +32,18 @@ class Model(ABC):
                 raise ValueError(
                     f"Invalid type for velocities callback {key}: {type(value)}. Expecting callable"
                 )
-            try:
-                velocity = value(0.0)
-                if not isinstance(velocity, np.ndarray):
-                    raise ValueError(
-                        f"Invalid type for velocities callback {key}. Expecting numpy array"
-                    )
-                if not velocity.shape == (6,):
-                    raise ValueError(
-                        f"Invalid shape of velocities callback {key}: {velocity.shape}. Expecting shape (6,)"
-                    )
-            except Exception as e:
-                raise ValueError(
-                    f"Error while calling velocities callback {key}: {e}. Expecting callable that takes a float as input and returns a numpy array of shape (6,)"
+            velocity = value(0.0)
+            if not isinstance(velocity, np.ndarray):
+                raise TypeError(
+                    f"Invalid type for velocities callback on {key}. Expecting numpy array, but got {type(velocity)}"
                 )
-
+            if not velocity.shape == (6,):
+                raise ValueError(
+                    f"Invalid shape of velocities callback {key}: {velocity.shape}. Expecting shape (6,)"
+                )
         # Ensure that force is a dictionary of callbacks that take a float as input and return an array of shape (3,)
         if not isinstance(self.forces, dict):
-            raise ValueError(
+            raise TypeError(
                 f"Invalid type for forces: {type(self.forces)}. Expecting dictionary"
             )
         for key, value in self.forces.items():
@@ -57,19 +51,14 @@ class Model(ABC):
                 raise ValueError(
                     f"Invalid type for force callback {key}: {type(value)}. Expecting callable"
                 )
-            try:
-                force = value(0.0)
-                if not isinstance(force, np.ndarray):
-                    raise ValueError(
-                        f"Invalid type for force callback {key}. Expecting numpy array"
-                    )
-                if not force.shape == (3,):
-                    raise ValueError(
-                        f"Invalid shape of force callback {key}: {force.shape}. Expecting shape (3,)"
-                    )
-            except Exception as e:
+            force = value(0.0)
+            if not isinstance(force, np.ndarray):
+                raise TypeError(
+                    f"Invalid type for force callback {key}. Expecting numpy array"
+                )
+            if not force.shape == (3,):
                 raise ValueError(
-                    f"Error while calling force callback {key}: {e}. Expecting callable that takes a float as input and returns a numpy array of shape (3,)"
+                    f"Invalid shape of force callback {key}: {force.shape}. Expecting shape (3,)"
                 )
         self.unfound_links = []  # Keep track of links that were not found in the model
 
