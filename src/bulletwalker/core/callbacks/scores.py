@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
+import enum
+from typing import List, Dict
 from bulletwalker import logging as log
 from bulletwalker.data.simulation_step import SimulationStep
 from bulletwalker.data.score_result import ScoreResult
@@ -26,7 +28,7 @@ class ScoreFunction(ABC):
     ):
         # if self.tracked_models is None or len(self.tracked_models) == 0:
         #    self.tracked_models = simulation_step.model_states.keys()
-        if tracked_models is None:
+        if tracked_models is None or len(tracked_models) == 0:
             tracked_models = self.tracked_models
 
     def set_tracked_models(self, tracked_models: list):
@@ -59,7 +61,7 @@ class RootUpwardsScore(ScoreFunction):
         self, simulation_step: SimulationStep, tracked_models: list
     ) -> np.ndarray:
         super().calculate_score(simulation_step, tracked_models)
-        if tracked_models is None:
+        if tracked_models is None or len(tracked_models) == 0:
             tracked_models = list(simulation_step.model_states.keys())
         root_up_values = np.array(
             [
@@ -109,7 +111,7 @@ class ForwardScore(ScoreFunction):
         self, simulation_step: SimulationStep, tracked_models: list = None
     ):
         super().calculate_score(simulation_step, tracked_models)
-        if tracked_models is None:
+        if tracked_models is None or len(tracked_models) == 0:
             tracked_models = list(simulation_step.model_states.keys())
         scores = {
             # m: (2.0 * self.multiplier / np.pi)
@@ -135,54 +137,88 @@ class ForwardScore(ScoreFunction):
         )
 
 
-class VelocityChangeScore(ScoreFunction):
-    def __init__(self, velocity_delta: float = 0.01):
-        super().__init__()
-        self.velocity_delta = velocity_delta
-        self.reset()
-        self.last_angular_velocities = {}
-        self.last_time = None
+class HumanoidRobotStepScore(ScoreFunction, ABC):
+    """Score function that rewards each step of a robot model The score is calculated as the number of steps the robot model has taken.
 
-    def reset(self):
-        self.score = 0
+    Note: The score function is only applicable to humanoid robot models.
+    """
+
+    def __init__(
+        self,
+        score_per_step: float,
+    ) -> None:
+        super().__init__(multiplier=1.0)
+        self.score_per_step = score_per_step
+
+    def calculate_score(
+        self,
+        simulation_step: SimulationStep,
+        tracked_models: list = None,
+    ):
+        super().calculate_score(simulation_step, tracked_models)
+        return
+
+
+class HumanoidRobotContactStepScore(HumanoidRobotStepScore):
+    def __init__(
+        self,
+        score_per_step: float,
+        feet_links: Dict[str, List[int]] = [],
+        step_delay_ms: float = 500.0,
+    ):
+        super().__init__(score_per_step=score_per_step)
+        self.feet_links = feet_links
+        self.last_foot_contact = -1
+        self.last_foot_contact_time_ms = -1
+        self.step_delay_ms = step_delay_ms
+        self.scores = {}
 
     def calculate_score(
         self, simulation_step: SimulationStep, tracked_models: list = None
     ):
         super().calculate_score(simulation_step, tracked_models)
-        if tracked_models is None:
+        if tracked_models is None or len(tracked_models) == 0:
             tracked_models = list(simulation_step.model_states.keys())
-        if self.last_angular_velocities is not None:
-            scores = {}
-            for model in tracked_models:
-                if model not in self.last_angular_velocities:
-                    log.warning(
-                        f"Model {model} not found in last angular velocities. Skipping..."
-                    )
-                    continue
-                current_angular_velocity = simulation_step.model_states[
-                    model
-                ].base_angular_velocity
-                if current_angular_velocity * self.last_angular_velocities[model] < 0:
-                    scores[model] = 1.0
-                else:
-                    scores[model] = 0.0
-            self.last_angular_velocities = {
-                model: simulation_step.model_states[model].base_angular_velocity
-                for model in tracked_models
-            }
-            self.last_time = simulation_step.time
-        else:
-            self.last_angular_velocities = {
-                model: simulation_step.model_states[model].base_angular_velocity
-                for model in tracked_models
-            }
-            self.last_time = simulation_step.time
-            scores = dict.fromkeys(tracked_models, 0.0)
+
+        # Check if any of the feet links are in contact
+        for m in tracked_models:
+            if m not in self.scores:
+                self.scores[m] = 0.0
+            links_in_contact = [
+                simulation_step.model_states[m].contact_points[link_pair].linkIndexA
+                for (link_pair, contact_info) in simulation_step.model_states[
+                    m
+                ].contact_points.items()
+            ]
+            link_in_contact = links_in_contact[0] if len(links_in_contact) > 0 else -1
+            if link_in_contact in self.feet_links[m]:
+                if link_in_contact != self.last_foot_contact:
+                    if (
+                        simulation_step.real_time * 1000
+                        - self.last_foot_contact_time_ms
+                        > self.step_delay_ms
+                    ):
+                        # Update the score only if the foot contact has changed after the delay
+                        self.scores[m] += self.score_per_step
+                    # The foot contact has changed anyways, so update the last foot contact
+                    self.last_foot_contact = link_in_contact
+                    self.last_foot_contact_change_index = simulation_step.index
+                    self.last_foot_contact_time_ms = simulation_step.real_time * 1000
         return ScoreResult(
-            scores=scores,
-            contributions=None,
-            total_score=np.mean(list(scores.values())),
+            scores=self.scores,
+            contributions=dict(),
+        )
+
+
+class HumanoidRobotVelocityChangeStepScore(HumanoidRobotStepScore):
+    def __init__(self, score_per_step: float = 100.0):
+        super().__init__(score_per_step=score_per_step)
+
+    def calculate_score(
+        self, simulation_step: SimulationStep, tracked_models: list = None
+    ):
+        raise NotImplementedError(
+            "HumanoidRobotVelocityChangeScore.calculate_score is not implemented yet"
         )
 
 

@@ -63,6 +63,9 @@ class Terrain(Model, ABC):
             joint_states=[],
         )
 
+    def step(self, t: float) -> None:
+        pass
+
 
 class PlaneTerrain(Terrain):
     def __init__(

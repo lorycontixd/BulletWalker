@@ -38,6 +38,7 @@ class JointInfo:
 
         valid_kwargs = (
             "initial_position",
+            "initial_velocity",
             "control_metric",
         )
 
