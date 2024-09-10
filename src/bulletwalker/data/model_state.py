@@ -18,6 +18,7 @@ class ModelState:
     base_angular_velocity: np.ndarray = dataclasses.field(
         default_factory=lambda: np.zeros(3)
     )
+    link_states: dict[str, np.ndarray] = dataclasses.field(default_factory=dict)
     joint_states: dict[str, JointState] = dataclasses.field(default_factory=dict)
     contact_points: dict[(str, str), ContactInfo] = dataclasses.field(
         default_factory=dict

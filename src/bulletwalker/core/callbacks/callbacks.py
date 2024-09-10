@@ -3,6 +3,7 @@ import numpy as np
 import pathlib
 from typing import List, Dict
 from bulletwalker import logging as log
+from bulletwalker.core.models.model import Model
 from .scores import ScoreFunction
 from abc import ABC, abstractmethod
 
@@ -184,63 +185,39 @@ class TrackerCallback(Callback):
 
     """
 
-    def __init__(self, simulator, variables: List[str]):
+    def __init__(self, simulator, model_names: List[str]):
         super().__init__(simulator)
-        self.variables = variables
-        self.history = []
+        self.model_names = model_names
+        self.history = {}
+        self.t = []
 
     def on_simulation_start(self):
-        self.history = []
+        self.t = []
+        self.history = {model: [] for model in self.model_names}
 
     def on_simulation_step(self, simulation_step):
-        for var in self.variables:
-            pass
+        self.t.append(simulation_step.sim_time)
+        for model in self.model_names:
+            if model not in simulation_step.model_states:
+                log.warning(f"Model {model} not found in simulation step")
+                continue
+            if model not in self.history:
+                self.history[model] = []
+            self.history[model].append(simulation_step.model_states[model])
 
     def on_simulation_end(self):
-        pass
+        print(f"[TrackerCallback] {list(self.history.keys())}")
 
     def reset(self):
-        self.history = []
+        self.history = {}
+        self.t = []
 
-
-# class GraphingCallback(Callback):
-#     """
-#     Callback to graph tracked variables when included in the simulator.
-#     """
-
-#     def __init__(self, simulator, variables, output_dir=None):
-#         """
-#         Initialize the callback.
-
-#         Args:
-#             simulator (Simulator): The simulator object.
-#             variables (list): List of variables to track. Each variable be present in the simulation step object.
-#             output_dir (str, optional): Output directory for the graphs. Defaults to None (./output/graphs).
-
-#         Note:
-#             Each variable must be in the form 'model.property.attribute' where 'object' is a key in the simulation step object.
-#             - An object must be a model
-#             - A property can be a link or a joint
-#             - An attribute can be a position, orientation, velocity, force, etc
-
-#             For example: 'robot.base.position', 'robot_name.joint_name.position', 'robot.joint1.velocity'
-#         """
-#         super().__init__(simulator=simulator)
-#         self.variables = variables
-#         if output_dir is None:
-#             output_dir = pathlib.Path("./") / "output" / "graphs"
-#         else:
-#             if not isinstance(output_dir, (str, pathlib.Path)):
-#                 raise ValueError("Output directory must be a string or pathlib.Path")
-#             if isinstance(output_dir, str):
-#                 output_dir = pathlib.Path(output_dir)
-#         output_dir.mkdir(parents=True, exist_ok=True)
-
-#     def on_simulation_start(self):
-#         pass
-
-#     def on_simulation_step(self, simulation_step):
-#         pass
-
-#     def on_simulation_end(self):
-#         pass
+    def get_observable_values(self, model_name: str, observable: str):
+        if not self.history:
+            log.warning("No history found. Run simulation first.")
+            return
+        if model_name not in self.history:
+            log.warning(f"Model {model_name} not found in history")
+            return
+        x = [state.__dict__[observable] for state in self.history[model_name]]
+        return x

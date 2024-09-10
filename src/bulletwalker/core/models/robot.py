@@ -6,6 +6,7 @@ from .model import Model
 from bulletwalker.data.joint_info import JointInfo
 from bulletwalker.data.joint_data import JointData, ControlMetric
 from bulletwalker.data.joint_state import JointState
+from bulletwalker.data.link_state import LinkState
 from bulletwalker.data.model_state import ModelState
 from bulletwalker.data.contact_info import ContactInfo
 from bulletwalker.core.math.quaternion import Quaternion
@@ -156,6 +157,10 @@ class Robot(Model):
             j: JointState(pybullet.getJointState(self.id, self.joints[j].index))
             for j in joints
         }
+        link_states = {
+            str(i): LinkState(pybullet.getLinkState(self.id, i))
+            for i in range(self.dofs)
+        }
 
         contacts = pybullet.getContactPoints(self.id)
         contact_infos = {}
@@ -188,5 +193,6 @@ class Robot(Model):
             base_linear_velocity=lin_vel,
             base_angular_velocity=ang_vel,
             joint_states=joint_states,
+            link_states=link_states,
             contact_points=contact_infos,
         )
