@@ -8,7 +8,7 @@ class JointState:
             info = args[0]
             self.joint_position: float = info[0]
             self.joint_velocity: float = info[1]
-            self.joint_reaction_forces: np.ndarray = info[2]
+            self.joint_reaction_forces: np.ndarray = np.array(info[2])
             self.applied_joint_motor_torque: float = info[3]
         elif len(args) == 4:
             # Passed as individual arguments

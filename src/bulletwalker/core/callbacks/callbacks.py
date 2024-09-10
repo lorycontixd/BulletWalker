@@ -1,6 +1,9 @@
 import enum
 import numpy as np
+import pathlib
+from typing import List, Dict
 from bulletwalker import logging as log
+from bulletwalker.core.models.model import Model
 from .scores import ScoreFunction
 from abc import ABC, abstractmethod
 
@@ -172,3 +175,49 @@ class PrinterCallback(Callback):
 
     def on_simulation_end(self):
         print("Simulation ended")
+
+
+class TrackerCallback(Callback):
+    """Callback to track variables in the simulation and store them in a list.
+
+    Args:
+        Callback ([type]): [description]
+
+    """
+
+    def __init__(self, simulator, model_names: List[str]):
+        super().__init__(simulator)
+        self.model_names = model_names
+        self.history = {}
+        self.t = []
+
+    def on_simulation_start(self):
+        self.t = []
+        self.history = {model: [] for model in self.model_names}
+
+    def on_simulation_step(self, simulation_step):
+        self.t.append(simulation_step.sim_time)
+        for model in self.model_names:
+            if model not in simulation_step.model_states:
+                log.warning(f"Model {model} not found in simulation step")
+                continue
+            if model not in self.history:
+                self.history[model] = []
+            self.history[model].append(simulation_step.model_states[model])
+
+    def on_simulation_end(self):
+        print(f"[TrackerCallback] {list(self.history.keys())}")
+
+    def reset(self):
+        self.history = {}
+        self.t = []
+
+    def get_observable_values(self, model_name: str, observable: str):
+        if not self.history:
+            log.warning("No history found. Run simulation first.")
+            return
+        if model_name not in self.history:
+            log.warning(f"Model {model_name} not found in history")
+            return
+        x = [state.__dict__[observable] for state in self.history[model_name]]
+        return x

@@ -16,4 +16,5 @@ class JointData:
 
     name: str
     initial_position: float = 0
+    initial_velocity: float = 0
     control_metric: ControlMetric = ControlMetric.POSITION
